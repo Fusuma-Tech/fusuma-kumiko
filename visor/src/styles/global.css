@@ -240,3 +240,13 @@ a.card:hover { border-color: var(--line-2); background: var(--panel-2); }
   .rrow { grid-template-columns: 1fr; gap: 2px; }
   .content { padding: 20px 16px 40px; }
 }
+
+/* Pantalla de espera: proyecto sin cerebro todavía */
+.espera { max-width: 46rem; margin: 3rem auto 2rem; padding: 2rem 2.25rem; border: 1px dashed var(--line);
+          border-radius: 12px; text-align: center; }
+.espera-marca { opacity: .7; margin-bottom: .75rem; }
+.espera h2 { margin: 0 0 .75rem; font-size: 1.25rem; }
+.espera p { margin: .5rem 0; line-height: 1.55; }
+.espera code { font-size: .92em; }
+.espera-pista { color: var(--faint); font-size: .95em; }
+.espera-marca .logo { margin: 0 auto; }

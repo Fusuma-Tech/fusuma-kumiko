@@ -1,10 +1,11 @@
 // Carga el cerebro que se esté visualizando y lo prepara para las páginas.
 //
-// El visor no tiene datos propios: lee el `cerebro.json` que genera
+// El visor no tiene datos propios: genera y lee el `cerebro.json` de
 // `motor/construir_indice.py`. Qué cerebro, lo dice KUMIKO_CEREBRO; si no está,
 // se usa el de ejemplo, para que `npm run dev` funcione recién clonado.
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
@@ -18,21 +19,35 @@ function leeJson(rel, siFalta = null) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
-const config = leeJson('kumiko.json');
-if (!config) {
-  throw new Error(
-    `No encuentro kumiko.json en ${RAIZ}.\n` +
-    `Apunta KUMIKO_CEREBRO a la raíz de tu cerebro:\n` +
-    `  KUMIKO_CEREBRO=/ruta/a/tu/cerebro npm run dev`);
+// Sin kumiko.json no hay cerebro todavía: es el estado normal mientras Claude lo
+// está montando con la skill iniciar-cerebro. El visor no falla: enseña una
+// pantalla de espera y se recarga solo cuando aparece (astro.config.mjs vigila).
+const config = leeJson('kumiko.json') || {};
+export const sinCerebro = !fs.existsSync(path.join(RAIZ, 'kumiko.json'));
+
+// Los datos se regeneran aquí mismo desde el markdown, con el generador del
+// motor: nadie tiene que acordarse de lanzar construir_indice.py. Vale con el
+// python3 del sistema (3.9 basta para el motor; solo el servidor MCP pide 3.10).
+export function regenera() {
+  if (sinCerebro) return { ok: false, motivo: 'sin cerebro' };
+  const generador = path.resolve(AQUI, '../../../motor/construir_indice.py');
+  const r = spawnSync(process.env.KUMIKO_PYTHON_MOTOR || 'python3', [generador, RAIZ],
+                      { encoding: 'utf8' });
+  if (r.status !== 0) {
+    const detalle = (r.stderr || r.stdout || String(r.error || '')).trim().split('\n').pop();
+    console.error(`[kumiko] no he podido regenerar los datos del cerebro: ${detalle}`);
+    return { ok: false, motivo: detalle };
+  }
+  return { ok: true };
 }
+regenera();
 
 const rutaDatos = config?.rutas?.datos || '.kumiko/cerebro.json';
-export const datos = leeJson(rutaDatos);
-if (!datos) {
+export const datos = leeJson(rutaDatos) || {};
+if (!sinCerebro && !leeJson(rutaDatos)) {
   throw new Error(
-    `Falta ${rutaDatos} en ${RAIZ}.\n` +
-    `Genera los datos antes de arrancar el visor:\n` +
-    `  python3 motor/construir_indice.py ${RAIZ}`);
+    `Hay kumiko.json en ${RAIZ} pero no he podido generar ${rutaDatos}.\n` +
+    `Mira el error de arriba, o lanza a mano:  python3 motor/construir_indice.py ${RAIZ}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -76,7 +91,7 @@ export const defectos = datos.defectos || [];
 export const comprobaciones = datos.comprobaciones || [];
 export const reincidencias = datos.reincidencias || [];
 export const reglasComprobadas = new Set(comprobaciones.map((c) => c.regla));
-export const nombre = datos.nombre || path.basename(RAIZ);
+export const nombre = datos.nombre || config.nombre || path.basename(RAIZ);
 export const generado = datos.generado || '';
 export const marca = config.marca || {};
 

@@ -78,13 +78,15 @@ Después explica en dos frases, sin jerga:
 - Cómo se consulta: describes lo que vas a tocar y te devuelve solo las reglas de eso.
 - Cómo crece: cada vez que una revisión te pille algo, `/kumiko:anotar-defecto`.
 
-Ofrece enseñárselo en el visor — es lo que hace que se entienda de un vistazo lo que acabáis
-de montar:
+Si la sesión la arrancó `empezar.sh`, el visor ya está abierto en el navegador y se ha ido
+rellenando solo mientras escribíais: dile que lo mire. Si no, ofrécele abrirlo — es lo que hace
+que se entienda de un vistazo lo que acabáis de montar — con la orden que lo hace todo:
 
 ```bash
-cd ${CLAUDE_PLUGIN_ROOT}/visor && npm install
-KUMIKO_CEREBRO=<raíz del cerebro> npm run dev
+sh ${CLAUDE_PLUGIN_ROOT}/empezar.sh <raíz del proyecto>
 ```
+
+(o solo el visor: `cd ${CLAUDE_PLUGIN_ROOT}/visor && KUMIKO_CEREBRO=<raíz del cerebro> npm run dev`).
 
 Si el cerebro ha quedado en un repositorio distinto del código, deja el puntero para que el
 servidor MCP lo encuentre sin configurar nada más:

@@ -3,12 +3,17 @@
 Panel estático en Astro que hace legible cualquier cerebro kumiko.
 
 ```bash
-python3 ../motor/construir_indice.py /ruta/a/tu/cerebro   # genera los datos
 cd visor && npm install
 KUMIKO_CEREBRO=/ruta/a/tu/cerebro npm run dev             # http://localhost:4321
 ```
 
-Sin `KUMIKO_CEREBRO` usa el cerebro de `../ejemplo`, así que recién clonado funciona.
+(`sh ../empezar.sh /ruta/a/tu/proyecto` hace esto y además abre Claude.)
+
+Sin `KUMIKO_CEREBRO` usa el cerebro de `../ejemplo`, así que recién clonado funciona. Los datos
+(`.kumiko/cerebro.json`) los regenera él mismo con `motor/construir_indice.py` al arrancar, y en
+desarrollo vigila la carpeta del cerebro: cualquier markdown, `kumiko.json` o `decisiones.json`
+que cambie regenera los datos y recarga el navegador. Si el proyecto aún no tiene `kumiko.json`,
+enseña una pantalla de espera y se recarga cuando aparece.
 
 ## Páginas
 

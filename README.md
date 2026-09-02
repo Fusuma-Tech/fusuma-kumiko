@@ -2,6 +2,11 @@
 
 Motor de cerebro de contexto para equipos que trabajan con agentes.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/resumen-dark.png">
+  <img src="docs/capturas/resumen-light.png" alt="El visor de kumiko: resumen del cerebro, con la salud de las reglas y las reincidentes">
+</picture>
+
 > *Kumiko* es el entramado de listones finos que sostiene un panel japonés. No es el papel:
 > es la estructura que lo mantiene en su sitio. Esto tampoco es tu contenido — es lo que hace
 > que se pueda encontrar.
@@ -25,54 +30,69 @@ citable, cada fichero declara cuándo aplica, y un servidor MCP devuelve solo lo
 
 Mil caracteres en vez del cerebro entero.
 
+<img src="docs/capturas/terminal-probar.png" alt="Lo que devuelve el servidor a una consulta: dos reglas con id, por qué casaron y el defecto que ya costó caro" width="820">
+
 ---
 
-## 1. Pruébalo en dos minutos
-
-Sin instalar nada. El repositorio trae un cerebro de ejemplo que funciona:
+## 1. Empieza con una orden
 
 ```bash
-git clone <este-repo> kumiko && cd kumiko/ejemplo
+git clone https://github.com/jehiellinarezfusuma/fusuma-kumiko.git kumiko
+sh kumiko/empezar.sh /ruta/a/tu/proyecto
+```
 
+Eso hace todo lo que hay que hacer, en orden y sin preguntar: deja listo el Python del servidor
+MCP (en un entorno propio, `~/.kumiko/venv`), registra el plugin en Claude Code, abre el visor
+en el navegador y arranca Claude dentro de tu proyecto **ya haciéndote la entrevista** para
+montar el cerebro. Mientras contestas, el visor se va rellenando solo con lo que Claude escribe.
+Si el proyecto ya tiene cerebro, Claude arranca enseñándote su mapa. Puedes lanzarlo tantas
+veces como quieras: lo que ya está hecho, lo salta.
+
+<img src="docs/capturas/terminal-empezar.png" alt="Los cuatro pasos de empezar.sh: servidor MCP, plugin, visor y Claude" width="820">
+
+Necesitas Claude Code y, para el visor, node. Sin node todo funciona igual, salvo el panel.
+
+Mientras Claude te entrevista, el visor espera así, y en cuanto aparece la primera regla se rellena solo:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/espera-dark.png">
+  <img src="docs/capturas/espera-light.png" alt="El visor en un proyecto que todavía no tiene cerebro">
+</picture>
+
+Para verlo funcionar antes de tocar tu proyecto, el repositorio trae un cerebro inventado (un
+servicio de reserva de salas, 16 reglas y 2 defectos): `sh kumiko/empezar.sh kumiko/ejemplo`.
+Su contenido no te vale; **su estructura sí**.
+
+Y sin abrir Claude, para ver qué devuelve el servidor:
+
+```bash
+cd kumiko/ejemplo
 python3 ../motor/servidor_mcp.py --probar "guardo una reserva y quiero evitar solapes"
 python3 ../motor/servidor_mcp.py --medir
 ```
 
-Y el panel:
+---
+
+## 2. Instalar a mano (si no usas `empezar.sh`)
+
+Los plugins de Claude Code se instalan desde un marketplace, aunque sea local. Este
+repositorio **es** su propio marketplace, así que basta con apuntarlo, desde la terminal:
 
 ```bash
-cd ../visor && npm install && npm run dev      # http://localhost:4321
+claude plugin marketplace add /ruta/a/kumiko        # o la URL del repositorio
+claude plugin install kumiko@kumiko --scope user
 ```
 
-El ejemplo es un servicio de reserva de salas inventado, con 16 reglas y 2 defectos completos.
-Sirve para ver **la forma** que tiene que tener un cerebro. Su contenido no te vale; su
-estructura sí.
-
-## 2. Instala el plugin
-
-Los plugins de Claude Code se instalan siempre desde un marketplace, aunque sea local. Este
-repositorio **es** su propio marketplace, así que basta con apuntarlo:
-
-```
-/plugin marketplace add https://gitlab.tuempresa.com/equipo/kumiko.git
-/plugin install kumiko@kumiko
-```
-
-En GitLab autoalojado el `.git` final es obligatorio. Desde una copia local, la ruta a secas:
-
-```
-/plugin marketplace add /ruta/a/kumiko
-/plugin install kumiko@kumiko
-```
-
-Para trastear sin instalar, cargándolo solo en esa sesión: `claude --plugin-dir /ruta/a/kumiko`.
+O dentro de una sesión: `/plugin marketplace add /ruta/a/kumiko` y `/plugin install kumiko@kumiko`.
+En GitLab autoalojado la URL lleva el `.git` final. Para trastear sin instalar, cargándolo solo
+en esa sesión: `claude --plugin-dir /ruta/a/kumiko`.
 
 Comprueba que ha entrado con `/skills` (salen cuatro) y `/mcp` (el servidor `kumiko`, con seis
 herramientas).
 
 **Requisitos.** Los scripts del motor valen con Python 3.9 en adelante y no necesitan nada más.
 El servidor MCP necesita además el paquete `mcp`, que exige **Python >= 3.10**. Una sola orden lo
-deja listo, sin tocar ningún Python del sistema:
+deja listo, sin tocar ningún Python del sistema (`empezar.sh` la lanza por ti):
 
 ```sh
 sh /ruta/a/kumiko/motor/instalar.sh
@@ -223,18 +243,45 @@ Después de tocar cualquier markdown: `construir_indice.py`. El índice se gener
 
 ## 5. El visor
 
-Un panel estático que hace legible cualquier cerebro: reglas por categoría y momento con
-buscador, los defectos filtrables, y un grafo donde se ve de un vistazo qué reglas tienen un
-caso real detrás y cuáles no ha tocado nadie.
+Un panel que hace legible cualquier cerebro: reglas por categoría y momento con buscador, los
+defectos filtrables, y un grafo donde se ve de un vistazo qué reglas tienen un caso real detrás
+y cuáles no ha tocado nadie.
+
+`empezar.sh` lo abre por ti. A mano:
 
 ```bash
-python3 motor/construir_indice.py /ruta/a/tu/cerebro
 cd visor && npm install
-KUMIKO_CEREBRO=/ruta/a/tu/cerebro npm run dev      # http://localhost:4321
+KUMIKO_CEREBRO=/ruta/a/tu/proyecto npm run dev      # http://localhost:4321
 ```
 
-Sin `KUMIKO_CEREBRO` muestra el de `ejemplo/`. Modo claro y oscuro, tu logo si lo quieres, y los
-colores salen de tus categorías. Detalles en [`visor/README.md`](visor/README.md).
+No hay que generar nada antes: el visor regenera los datos desde el markdown al arrancar y
+**vigila el cerebro**; cuando Claude o tú escribís una regla, anotáis un defecto o creáis el
+`kumiko.json` de un proyecto nuevo, se recarga solo. En un proyecto sin cerebro enseña una
+pantalla de espera hasta que aparece. Sin `KUMIKO_CEREBRO` muestra el de `ejemplo/`. Modo claro
+y oscuro, tu logo si lo quieres, y los colores salen de tus categorías. Detalles en
+[`visor/README.md`](visor/README.md).
+
+
+**Reglas**, por categoría y momento, con buscador; el ⚙ marca las que tienen comprobación automática:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/reglas-dark.png">
+  <img src="docs/capturas/reglas-light.png" alt="La página de reglas del visor">
+</picture>
+
+**Grafo**: cada zona es una categoría; los rombos son defectos y la línea discontinua une cada uno con la regla que nació de él. Lo que no tiene ninguna línea, nadie lo ha pagado todavía:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/grafo-dark.png">
+  <img src="docs/capturas/grafo-light.png" alt="El grafo del cerebro, agrupado por categoría">
+</picture>
+
+**Defectos**: lo que ya costó caro, filtrable, y qué regla lo previene ahora:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/defectos-dark.png">
+  <img src="docs/capturas/defectos-light.png" alt="La página de defectos del visor">
+</picture>
 
 ## 6. El servidor MCP
 
@@ -291,11 +338,12 @@ Ese `git diff --exit-code` evita el fallo más común: alguien edita una regla, 
 | `reglas_para_tarea` **no encuentra nada** | El `aplica_si` de tus ficheros no habla el idioma de la consulta. Reescríbelo con los términos que usaría la gente — no toques el motor. |
 | Devuelve **reglas que no tocaban** | Lo mismo por el otro lado: el `aplica_si` es demasiado genérico. La respuesta te dice en qué palabras casó. |
 | `comprobar.py` **falla tras editar** | Casi siempre es una cita a un id que no existe, o el índice de defectos desincronizado. El mensaje dice cuál. |
-| El visor **no arranca** | Falta generar los datos: `construir_indice.py` antes que `npm run dev`. |
+| El visor **no arranca** o no refleja un cambio | Mira `~/.kumiko/visor.log` (con `empezar.sh`) o la consola de `npm run dev`: si `construir_indice.py` falla por un markdown mal formado, ahí sale el motivo. |
 
 ## 9. Qué hay aquí
 
 ```
+empezar.sh      la única orden que hace falta después de clonar
 motor/          los scripts, el núcleo compartido, el instalador y el lanzador del servidor
 skills/         las cuatro skills del plugin
 visor/          el panel en Astro, sirve cualquier cerebro

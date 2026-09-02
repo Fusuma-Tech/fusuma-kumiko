@@ -1,26 +1,20 @@
 ---
-// La marca del visor. Por defecto, un nudo kumiko dibujado a mano: el
-// entramado de listones que sostiene el panel. Un cerebro puede poner el suyo
-// con "marca": { "logo": "ruta/al.svg", "nombre": "..." } en kumiko.json.
+// La marca del visor. Por defecto, el logo de Fusuma, que es quien hace kumiko.
+// Un cerebro puede poner el suyo con "marca": { "logo": "ruta/al.svg" } en su
+// kumiko.json (ruta relativa a la raíz del cerebro); el SVG hereda el color del
+// texto con `currentColor`, así funciona igual sobre papel y sobre tinta.
 import fs from 'node:fs';
 import path from 'node:path';
 import { RAIZ, marca } from '../lib/cerebro.mjs';
+import fusuma from '../assets/fusuma-logo.svg?raw';
 
 const { size = 30 } = Astro.props;
-let propio = null;
+let svg = fusuma;
+let ancho = size * 3.8;             // el logo de Fusuma es apaisado (252×104)
 if (marca.logo) {
   const p = path.join(RAIZ, marca.logo);
-  if (fs.existsSync(p)) propio = fs.readFileSync(p, 'utf8');
+  if (fs.existsSync(p)) { svg = fs.readFileSync(p, 'utf8'); ancho = size * 3.4; }
 }
 ---
-{propio
-  ? <span class="logo" style={`display:block;width:${size * 3.4}px`} set:html={propio} />
-  : (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-label="kumiko"
-         stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-      <rect x="2.8" y="2.8" width="26.4" height="26.4" rx="4" />
-      <path d="M2.8 16H29.2M16 2.8V29.2" />
-      <path d="M6.4 6.4 25.6 25.6M25.6 6.4 6.4 25.6" opacity=".55" />
-    </svg>
-  )}
+<span class="logo" style={`display:block;width:${ancho}px`} set:html={svg} />
 <style>.logo :global(svg) { width: 100%; height: auto; display: block; }</style>
