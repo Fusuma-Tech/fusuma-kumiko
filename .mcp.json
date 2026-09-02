@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "kumiko": {
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/motor/servidor_mcp.py",
+        "${CLAUDE_PROJECT_DIR}"
+      ]
+    }
+  }
+}

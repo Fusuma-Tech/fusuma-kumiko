@@ -1,0 +1,134 @@
+---
+import Base from '../layouts/Base.astro';
+import { categorias, comprobaciones, cuentaCategoria, defectos, decisiones, ficheros,
+         hayDecisiones, momentos, nombre, nombreCategoria, reglas, reglasComprobadas,
+         reincidencias } from '../lib/cerebro.mjs';
+const comprobadas = reglas.filter((r) => reglasComprobadas.has(r.id)).length;
+const maxCat = Math.max(1, ...categorias.map((c) => cuentaCategoria(c.id)));
+const conEvidencia = ficheros.filter((f) => f.evidencia).length;
+const ds = decisiones?.decisiones || [];
+const cuenta = (e) => ds.filter((d) => d.estado === e).length;
+const ESTADO = { cumple: ['✓', 'Cumplen una regla que ya teníamos'],
+                 corregido: ['✎', 'Corregidas en revisión'],
+                 reusa: ['↻', 'Reutilizan algo que ya existía'] };
+---
+<Base title="Resumen" subtitle="Qué hay en el cerebro y cómo está de sano" active="home">
+  <p class="lead">
+    Todo lo que ves se genera desde el markdown del cerebro, así que no puede desincronizarse.
+    Si algo falta aquí, falta en el repositorio.
+  </p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n">{reglas.length}</div><div class="k">Reglas con id citable</div></div>
+    <div class="kpi"><div class="n">{ficheros.length}</div><div class="k">Ficheros · {categorias.length} categorías</div></div>
+    <div class="kpi"><div class="n">{defectos.length}</div><div class="k">Defectos ya pagados</div></div>
+    <div class="kpi"><div class="n">{momentos.length}</div><div class="k">Momentos del trabajo</div></div>
+    <div class="kpi">
+      <div class="n">{conEvidencia}<span style="font-size:16px;color:var(--faint)">/{ficheros.length}</span></div>
+      <div class="k">Ficheros con evidencia declarada</div>
+    </div>
+    <div class="kpi">
+      <div class="n">{comprobadas}<span style="font-size:16px;color:var(--faint)">/{reglas.length}</span></div>
+      <div class="k">Reglas comprobadas automáticamente</div>
+      <div class="bar"><i style={`width:${reglas.length ? Math.round((comprobadas / reglas.length) * 100) : 0}%;background:var(--ink-2)`}></i></div>
+    </div>
+    <div class="kpi">
+      <div class="n">{reincidencias.length}</div>
+      <div class="k">Reglas reincidentes</div>
+    </div>
+  </div>
+
+  <div class="sec-title">El ciclo: escrita → citable → comprobada</div>
+  <p class="lead">
+    Una regla <b>escrita</b> no evita nada. Una regla <b>citable</b> —con id, enrutada— evita algo.
+    Una regla <b>comprobada</b> —con un patrón que <code>vigilar.py</code> busca en el diff— es la
+    única que impide repetir el error. Hoy {comprobadas} de {reglas.length} están en el tercer
+    escalón. Las demás son de juicio, y está bien que lo sean; las reincidentes de abajo son las
+    primeras candidatas a subir.
+  </p>
+
+  {reincidencias.length > 0 && (
+    <>
+      <div class="sec-title">Reincidentes · reglas que ya estaban escritas y volvieron a fallar</div>
+      <table class="dtable">
+        <thead><tr><th style="width:130px">Regla</th><th></th><th style="width:70px">Veces</th>
+                   <th style="width:170px">Corregida en</th><th style="width:120px">Defectos</th><th style="width:130px">Comprobada</th></tr></thead>
+        <tbody>
+          {reincidencias.map((x) => (
+            <tr class={`cat-${x.categoria}`}>
+              <td class="id"><span class="conmarca"><span class="pip"></span>{x.regla}</span></td>
+              <td>{x.titulo}</td>
+              <td class="ref">{x.veces}</td>
+              <td class="ref">{x.corregido_en.join(', ') || '—'}</td>
+              <td class="ref">{x.defectos.join(', ') || '—'}</td>
+              <td>{reglasComprobadas.has(x.regla)
+                ? <span class="chip"><span class="gl">✓</span> sí</span>
+                : <span class="chip"><span class="gl">!</span> todavía no</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p class="lead" style="margin-top:12px">
+        No les falta existir: les falta llegar a tiempo. Una reincidente <b>sin</b> comprobación
+        automática es exactamente donde más rinde escribir un patrón.
+      </p>
+    </>
+  )}
+
+  <div class="sec-title">Dónde está el peso del cerebro</div>
+  <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(238px,1fr))">
+    {categorias.map((c) => (
+      <a href={`/reglas#${c.id}`} class={`card cat-${c.id}`}>
+        <div class="h">
+          <span class="pip"></span>
+          <span class="t">{c.nombre}</span>
+          <span class="chip" style="margin-left:auto">{cuentaCategoria(c.id)}</span>
+        </div>
+        <div class="d">{c.descripcion}</div>
+        <div class="bar"><i style={`width:${Math.round((cuentaCategoria(c.id) / maxCat) * 100)}%`}></i></div>
+      </a>
+    ))}
+  </div>
+
+  {hayDecisiones && (
+    <>
+      <div class="sec-title">Las decisiones registradas, contra el estándar</div>
+      <div class="kpis">
+        {Object.entries(ESTADO).map(([k, [gl, txt]]) => (
+          <div class="kpi">
+            <div class="n">{cuenta(k)}</div>
+            <div class="k"><span class="chip"><span class="gl">{gl}</span> {txt}</span></div>
+            <div class="bar"><i style={`width:${ds.length ? Math.round((cuenta(k) / ds.length) * 100) : 0}%;background:var(--ink-2)`}></i></div>
+          </div>
+        ))}
+      </div>
+      <p class="lead">
+        <b>Corregido</b> no es un fallo del proceso: es una regla que no estaba escrita, o que no
+        se encontró a tiempo. Cada una debería acabar convertida en una regla con id.
+      </p>
+    </>
+  )}
+
+  <div class="sec-title">Por dónde empezar</div>
+  <div class="cards">
+    <a class="card" href="/reglas">
+      <div class="h"><span class="t">Reglas</span></div>
+      <div class="d">Las {reglas.length} reglas por categoría y por momento, con buscador. Es la vista que resuelve «¿qué me aplica a mí ahora?».</div>
+    </a>
+    <a class="card" href="/defectos">
+      <div class="h"><span class="t">Defectos</span></div>
+      <div class="d">Los {defectos.length} casos que ya costaron caro, con la regla que los habría evitado.</div>
+    </a>
+    <a class="card" href="/grafo">
+      <div class="h"><span class="t">Grafo</span></div>
+      <div class="d">La red completa agrupada por categoría: qué reglas tienen un defecto detrás y cuáles no ha tocado nadie.</div>
+    </a>
+  </div>
+
+  {!defectos.length && (
+    <div class="empty" style="margin-top:20px">
+      Este cerebro todavía no tiene ningún defecto registrado. Es lo más valioso que puede
+      tener: cada vez que una revisión pille algo, anótalo con evidencia.
+    </div>
+  )}
+</Base>

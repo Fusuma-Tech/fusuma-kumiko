@@ -1,0 +1,90 @@
+---
+import Base from '../layouts/Base.astro';
+import { categorias, defectos, nombreCategoria } from '../lib/cerebro.mjs';
+const sinRegla = defectos.filter((d) => !d.regla).length;
+---
+<Base title="Defectos" subtitle="Lo que ya costó caro, y la regla que lo habría evitado" active="defectos">
+  <p class="lead">
+    Es lo más valioso del cerebro y lo único que no se puede copiar de un blog. Cada entrada
+    lleva evidencia; un defecto sin regla detrás es una anécdota.
+  </p>
+
+  {defectos.length > 0 ? (
+    <>
+      <div class="filters">
+        <div class="fgroup">
+          <span class="lbl">Categoría</span>
+          <div class="fchips" id="f-cat">
+            {categorias.map((c) => {
+              const n = defectos.filter((d) => d.categoria === c.id).length;
+              return n > 0 && (
+                <button class={`fchip cat-${c.id}`} data-v={c.id} aria-pressed="false">
+                  <span class="pip"></span>{c.nombre}<span class="n">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div class="fgroup fsearch">
+          <span class="lbl">Buscar</span>
+          <input id="f-q" type="search" placeholder="identidad, concurrencia, correo…" autocomplete="off" />
+        </div>
+      </div>
+
+      {sinRegla > 0 && (
+        <div class="lead" style="color:var(--ink)">
+          <span class="chip"><span class="gl">!</span> {sinRegla} sin regla asociada</span>
+          &nbsp;Cada uno de esos pide una regla nueva, o reforzar una que ya exista.
+        </div>
+      )}
+
+      <table class="dtable">
+        <thead>
+          <tr><th style="width:56px">Id</th><th>Defecto</th><th style="width:150px">Categoría</th>
+              <th style="width:120px">Regla</th><th style="width:150px">Origen</th></tr>
+        </thead>
+        <tbody id="tb">
+          {defectos.map((d) => (
+            <tr class={`cat-${d.categoria}`} data-cat={d.categoria}
+                data-text={`${d.id} ${d.titulo} ${d.regla} ${d.etiqueta}`.toLowerCase()}>
+              <td class="id">{d.id}</td>
+              <td>{d.titulo}</td>
+              <td><span class="conmarca"><span class="pip"></span>{nombreCategoria(d.categoria)}</span></td>
+              <td class="ref">{d.regla || '—'}</td>
+              <td class="ref">{d.etiqueta || ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <script>
+        (function () {
+          var cats = new Set(), q = '';
+          var f = document.getElementById('f-cat');
+          if (f) f.addEventListener('click', function (ev) {
+            var b = ev.target.closest('.fchip'); if (!b) return;
+            var v = b.dataset.v;
+            if (cats.has(v)) { cats.delete(v); b.setAttribute('aria-pressed', 'false'); }
+            else { cats.add(v); b.setAttribute('aria-pressed', 'true'); }
+            aplica();
+          });
+          document.getElementById('f-q').addEventListener('input', function (e) {
+            q = e.target.value.trim().toLowerCase(); aplica();
+          });
+          function aplica() {
+            document.querySelectorAll('#tb tr').forEach(function (tr) {
+              var on = (!cats.size || cats.has(tr.dataset.cat)) && (!q || tr.dataset.text.indexOf(q) >= 0);
+              tr.style.display = on ? '' : 'none';
+            });
+          }
+        })();
+      </script>
+    </>
+  ) : (
+    <div class="empty">
+      Todavía no hay ningún defecto registrado.<br /><br />
+      Es la parte del cerebro que más rinde: la próxima vez que una revisión te pille algo,
+      anótalo con su evidencia — qué se rompió, dónde, y qué regla lo habría evitado.
+    </div>
+  )}
+</Base>

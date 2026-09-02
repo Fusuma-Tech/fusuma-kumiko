@@ -1,0 +1,70 @@
+---
+import '../styles/global.css';
+import Marca from '../components/Marca.astro';
+import { categorias, cuentaCategoria, defectos, generado, hayDecisiones,
+         nombre, reglas, tokensCss } from '../lib/cerebro.mjs';
+const { title = 'Cerebro', subtitle = '', active = '' } = Astro.props;
+const nav = [
+  { href: '/', ic: '▤', label: 'Resumen', key: 'home' },
+  { href: '/reglas', ic: '§', label: 'Reglas', key: 'reglas' },
+  { href: '/defectos', ic: '⚑', label: 'Defectos', key: 'defectos' },
+  ...(hayDecisiones ? [{ href: '/decisiones', ic: '◦', label: 'Decisiones', key: 'decisiones' }] : []),
+  { href: '/grafo', ic: '⁂', label: 'Grafo', key: 'grafo' },
+];
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{title} · {nombre}</title>
+    <style set:html={tokensCss()}></style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="side">
+        <a href="/" class="marca">
+          <Marca size={30} />
+          <div class="nom">{nombre}</div>
+          <span class="tag">kumiko</span>
+        </a>
+        <div class="group">Cerebro</div>
+        <nav>
+          {nav.map((n) => (
+            <a href={n.href} class={active === n.key ? 'active' : ''}>
+              <span class="ic">{n.ic}</span> {n.label}
+            </a>
+          ))}
+        </nav>
+        <div class="group">Categorías</div>
+        <nav>
+          {categorias.map((c) => (
+            <a href={`/reglas#${c.id}`} class={`cat-${c.id}`}>
+              <span class="pip"></span> {c.nombre}
+              <span class="n">{cuentaCategoria(c.id)}</span>
+            </a>
+          ))}
+        </nav>
+      </aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1>{title}</h1>
+            {subtitle && <div class="sub">{subtitle}</div>}
+          </div>
+        </header>
+        <div class="content">
+          <slot />
+          <footer class="pie">
+            <Marca size={18} />
+            <span>
+              {reglas.length} reglas · {defectos.length} defectos
+              {generado && <> · generado el {generado}</>} desde el markdown del cerebro
+            </span>
+          </footer>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

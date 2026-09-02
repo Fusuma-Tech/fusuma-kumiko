@@ -1,0 +1,23 @@
+#!/bin/sh
+# Hook de pre-commit de kumiko. Cópialo a .git/hooks/pre-commit y dale permisos de ejecución:
+#
+#     cp plantillas/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+#
+# Corre las comprobaciones del cerebro sobre lo que vas a commitear. Solo corta si una
+# regla declara `bloquea: sí`; lo demás lo enseña y te deja seguir. Para saltarlo una
+# vez, `git commit --no-verify` — y si te ves haciéndolo a menudo, la regla está mal
+# calibrada y hay que arreglar la regla, no el hook.
+
+KUMIKO="${KUMIKO_PLUGIN:-$HOME/.claude/plugins/kumiko}"
+if [ ! -f "$KUMIKO/motor/vigilar.py" ]; then
+  # también vale tener kumiko clonado al lado del proyecto
+  for c in ../kumiko ../../kumiko; do
+    [ -f "$c/motor/vigilar.py" ] && KUMIKO="$c" && break
+  done
+fi
+if [ ! -f "$KUMIKO/motor/vigilar.py" ]; then
+  echo "kumiko: no encuentro motor/vigilar.py (define KUMIKO_PLUGIN). Sigo sin comprobar." >&2
+  exit 0
+fi
+
+exec python3 "$KUMIKO/motor/vigilar.py" --proyecto "$(git rev-parse --show-toplevel)"

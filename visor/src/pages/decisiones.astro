@@ -1,0 +1,56 @@
+---
+import Base from '../layouts/Base.astro';
+import { decisiones, ficheros, hayDecisiones, nombreCategoria, reglas } from '../lib/cerebro.mjs';
+const porId = Object.fromEntries([...reglas, ...ficheros].map((x) => [x.id, x]));
+const ds = decisiones?.decisiones || [];
+const tareas = decisiones?.tareas || [{ id: null, etiqueta: 'Decisiones' }];
+const ESTADO = { cumple: ['✓', 'Cumple'], corregido: ['✎', 'Corregido en revisión'], reusa: ['↻', 'Reutiliza'] };
+---
+<Base title="Decisiones" subtitle="Cada decisión técnica, contra la regla que la respalda" active="decisiones">
+  {hayDecisiones ? (
+    <>
+      <p class="lead">
+        Cada tarjeta dice <b>qué se decidió</b>, <b>por qué</b> y <b>a qué regla</b> corresponde.
+        Una decisión sin id de regla detrás es una opinión.
+      </p>
+      {tareas.map((t) => {
+        const suyas = ds.filter((d) => d.tarea === t.id || t.id === null);
+        if (!suyas.length) return null;
+        return (
+          <>
+            <div class="sec-title">{t.etiqueta} · {suyas.length} decisiones</div>
+            {t.resumen && <p class="lead" style="margin-bottom:14px">{t.resumen}</p>}
+            <div class="cards">
+              {suyas.map((d) => {
+                const r = porId[d.regla];
+                const [gl, txt] = ESTADO[d.estado] || ['·', d.estado || ''];
+                return (
+                  <div class={`card cat-${r?.categoria || ''}`}>
+                    <div class="h">
+                      <span class="pip"></span>
+                      <span class="t">{d.etiqueta}</span>
+                      <span class="chip" style="margin-left:auto"><span class="gl">{gl}</span> {txt}</span>
+                    </div>
+                    <div class="d">{d.resumen}</div>
+                    <div class="f">
+                      {d.fuente && <span class="chip">pidió: {d.fuente}</span>}
+                      {d.defecto && <span class="chip">caso {d.defecto}</span>}
+                      {r && <span class="chip">{nombreCategoria(r.categoria)}</span>}
+                    </div>
+                    <div class="f">
+                      <span style="opacity:.7">↳</span>
+                      <b style="font-family:var(--mono);font-size:12px">{d.regla}</b>
+                      <span style="opacity:.8">{r?.titulo || 'regla no encontrada'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        );
+      })}
+    </>
+  ) : (
+    <div class="empty">Este cerebro no tiene <code>decisiones.json</code>.</div>
+  )}
+</Base>

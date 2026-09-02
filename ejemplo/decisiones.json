@@ -1,0 +1,46 @@
+{
+  "tareas": [
+    {
+      "id": "RES-142",
+      "etiqueta": "RES-142 · Reservas solapadas",
+      "resumen": "Dos personas reservaron la misma sala y franja. Se arregló la carrera y de paso se revisó cómo se notifica."
+    },
+    {
+      "id": "RES-158",
+      "etiqueta": "RES-158 · Confirmaciones que mentían",
+      "resumen": "El correo salía antes de persistir. Se separó el cálculo de la publicación de efectos."
+    }
+  ],
+  "decisiones": [
+    {
+      "id": "d-exclusion", "tarea": "RES-142",
+      "etiqueta": "Restricción de exclusión en la tabla",
+      "resumen": "La unicidad la impone la base de datos y el código trata la violación como un resultado de negocio.",
+      "regla": "DAT-PER-1", "estado": "corregido", "fuente": "revisión de Ana", "defecto": "§1"
+    },
+    {
+      "id": "d-clave", "tarea": "RES-142",
+      "etiqueta": "La clave es sala más intervalo",
+      "resumen": "Un índice sobre (sala_id, inicio) dejaba pasar solapes que empiezan en minutos distintos.",
+      "regla": "DAT-PER-2", "estado": "corregido", "fuente": "revisión de Ana"
+    },
+    {
+      "id": "d-error-valor", "tarea": "RES-142",
+      "etiqueta": "SalaOcupada como valor, no excepción",
+      "resumen": "El error de solape ya existía como tipo; se devuelve en el resultado en vez de lanzarse.",
+      "regla": "ARQ-ERR-1", "estado": "cumple", "fuente": "equipo"
+    },
+    {
+      "id": "d-plan", "tarea": "RES-158",
+      "etiqueta": "Planificar y luego publicar",
+      "resumen": "Una función pura valida y construye; los efectos externos salen al final, solo si la escritura cuadra.",
+      "regla": "NUC-2", "estado": "corregido", "fuente": "postmortem", "defecto": "§2"
+    },
+    {
+      "id": "d-reloj", "tarea": "RES-158",
+      "etiqueta": "El reloj se inyecta en los tests",
+      "resumen": "Se reutilizó el Clock que ya usaba el módulo de facturación en vez de escribir otro.",
+      "regla": "TST-3", "estado": "reusa", "fuente": "equipo"
+    }
+  ]
+}

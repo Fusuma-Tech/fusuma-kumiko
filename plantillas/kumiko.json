@@ -1,0 +1,23 @@
+{
+  "nombre": "Cerebro de <proyecto>",
+  "rutas": {
+    "router": "CLAUDE.md",
+    "reglas": "reglas",
+    "defectos": "aprendizajes/defectos.md",
+    "extra": [],
+    "indice": "reglas/INDICE.md",
+    "datos": ".kumiko/cerebro.json"
+  },
+  "prefijo_nucleo": "NUC",
+  "rutas_externas": [],
+  "solo_prosa": [],
+  "categorias": [
+    { "id": "metodo", "nombre": "Método", "descripcion": "Cómo se decide y cómo se verifica." }
+  ],
+  "momentos": [
+    { "id": "disenar",  "nombre": "Diseñar" },
+    { "id": "escribir", "nombre": "Escribir" },
+    { "id": "revisar",  "nombre": "Revisar" },
+    { "id": "entregar", "nombre": "Entregar" }
+  ]
+}

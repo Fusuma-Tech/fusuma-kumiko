@@ -1,0 +1,147 @@
+---
+import Base from '../layouts/Base.astro';
+import { categorias, cuentaCategoria, ficheros, momentos, nombreMomento,
+         reglas, reglasComprobadas, reglasDe } from '../lib/cerebro.mjs';
+const TIPO = { regla: '', checklist: 'lista de entrega', contexto: 'contexto', aprendizaje: 'aprendizajes' };
+const enMomento = (m) => reglas.filter((r) => (r.momentos || []).includes(m)).length;
+---
+<Base title="Reglas" subtitle="Todo el cerebro por categoría y por momento del trabajo" active="reglas">
+  <p class="lead">
+    Cada regla tiene un <b>id citable</b>. Fíltralas por <b>categoría</b> (de qué van) o por
+    <b>momento</b> (cuándo aplican), o busca por texto. En una MR se cita el id, y un
+    <code>grep</code> de esa cita lleva al texto exacto.
+  </p>
+
+  <div class="filters">
+    <div class="fgroup">
+      <span class="lbl">Categoría</span>
+      <div class="fchips" id="f-cat">
+        {categorias.map((c) => (
+          <button class={`fchip cat-${c.id}`} data-v={c.id} aria-pressed="false" title={c.descripcion}>
+            <span class="pip"></span>{c.nombre}<span class="n">{cuentaCategoria(c.id)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="lbl">Momento</span>
+      <div class="fchips" id="f-mom">
+        {momentos.map((m) => (
+          <button class="fchip" data-v={m.id} aria-pressed="false">
+            {m.nombre}<span class="n">{enMomento(m.id)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+    <div class="fgroup fsearch">
+      <span class="lbl">Buscar</span>
+      <input id="f-q" type="search" placeholder="upsert, escala, concurrencia…" autocomplete="off" />
+    </div>
+  </div>
+
+  <div class="fcount" id="f-count"></div>
+
+  {categorias.map((cat) => {
+    const fs = ficheros.filter((f) => f.categoria === cat.id);
+    if (!fs.length) return null;
+    return (
+      <section class={`catblock cat-${cat.id}`} id={cat.id} data-cat={cat.id}>
+        <div class="cathead">
+          <span class="pip"></span>
+          <h2>{cat.nombre}</h2>
+          <span class="cd">{cat.descripcion}</span>
+          <span class="cn">{cuentaCategoria(cat.id)} reglas</span>
+        </div>
+        {fs.map((f) => {
+          const rs = reglasDe(f.id);
+          const txt = [f.id, f.titulo, f.resumen, f.aplica_si, f.senal,
+                       ...rs.map((r) => `${r.id} ${r.titulo} ${r.resumen}`)].join(' ').toLowerCase();
+          return (
+            <article class="rfile" data-file={f.id} data-momentos={(f.momentos || []).join(' ')} data-text={txt}>
+              <div class="fh">
+                <span class="fid">{f.id}</span>
+                <span class="ft">{f.titulo}</span>
+                {f.tipo !== 'regla' && <span class="chip">{TIPO[f.tipo] || f.tipo}</span>}
+                <span class="fp">{f.ruta}</span>
+              </div>
+              {f.aplica_si
+                ? <div class="when"><b>Aplica si:</b> {f.aplica_si}</div>
+                : f.resumen && <div class="when">{f.resumen}</div>}
+              {f.senal && <div class="when"><b>Se detecta por:</b> {f.senal}</div>}
+              <div class="when">
+                {(f.momentos || []).map((m) => <span class="mom">{nombreMomento(m)}</span>)}
+                {f.evidencia && <span class="mom" title="evidencia declarada">▪ {f.evidencia}</span>}
+                {(f.comprobaciones || []).length > 0 &&
+                  <span class="mom" title="reglas con patrón que vigilar.py busca en el código">⚙ {f.comprobaciones.length} comprobable{f.comprobaciones.length > 1 ? 's' : ''}</span>}
+              </div>
+              {rs.length > 0 && (
+                <div class="rlist">
+                  {rs.map((r) => (
+                    <div class="rrow" data-momentos={(r.momentos || []).join(' ')}
+                         data-text={`${r.id} ${r.titulo} ${r.resumen}`.toLowerCase()}>
+                      <span class="rid">{r.id}{reglasComprobadas.has(r.id) && <span title="comprobada automáticamente"> ⚙</span>}</span>
+                      <div><div class="rt">{r.titulo}</div><div class="rd">{r.resumen}</div></div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </section>
+    );
+  })}
+
+  <div class="empty" id="f-empty" style="display:none">Ningún resultado con esos filtros.</div>
+
+  <script>
+    (function () {
+      var cats = new Set(), moms = new Set(), q = '';
+      function chips(id, set) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', function (ev) {
+          var b = ev.target.closest('.fchip'); if (!b) return;
+          var v = b.dataset.v;
+          if (set.has(v)) { set.delete(v); b.setAttribute('aria-pressed', 'false'); }
+          else { set.add(v); b.setAttribute('aria-pressed', 'true'); }
+          aplica();
+        });
+      }
+      chips('f-cat', cats); chips('f-mom', moms);
+      document.getElementById('f-q').addEventListener('input', function (e) {
+        q = e.target.value.trim().toLowerCase(); aplica();
+      });
+      function aplica() {
+        var visibles = 0;
+        document.querySelectorAll('.catblock').forEach(function (sec) {
+          var okCat = !cats.size || cats.has(sec.dataset.cat), vivos = 0;
+          sec.querySelectorAll('.rfile').forEach(function (f) {
+            var fm = (f.dataset.momentos || '').split(' ');
+            var on = okCat
+              && (!moms.size || fm.some(function (m) { return moms.has(m); }))
+              && (!q || (f.dataset.text || '').indexOf(q) >= 0);
+            f.style.display = on ? '' : 'none';
+            if (!on) return;
+            vivos++;
+            var filas = f.querySelectorAll('.rrow'), n = 0;
+            filas.forEach(function (r) {
+              var rm = (r.dataset.momentos || '').split(' ');
+              var ok = (!moms.size || rm.some(function (m) { return moms.has(m); }))
+                    && (!q || (r.dataset.text || '').indexOf(q) >= 0);
+              r.style.display = ok ? '' : 'none';
+              if (ok) n++;
+            });
+            if (q && n === 0) filas.forEach(function (r) { r.style.display = ''; });
+            visibles += n || filas.length;
+          });
+          sec.style.display = vivos ? '' : 'none';
+        });
+        document.getElementById('f-count').textContent =
+          (cats.size || moms.size || q) ? visibles + ' reglas coinciden' : '';
+        document.getElementById('f-empty').style.display = visibles ? 'none' : '';
+      }
+      aplica();
+    })();
+  </script>
+</Base>

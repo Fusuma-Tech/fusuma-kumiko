@@ -1,0 +1,7 @@
+{
+  "name": "kumiko",
+  "version": "0.1.0",
+  "description": "Motor de cerebro de contexto: convierte lo que aprendéis revisando MRs en reglas con id que un agente puede consultar por tarea, en vez de cargarlas todas.",
+  "author": { "name": "Fusuma" },
+  "keywords": ["contexto", "reglas", "mcp", "revision", "onboarding"]
+}

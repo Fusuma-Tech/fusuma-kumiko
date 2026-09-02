@@ -1,0 +1,289 @@
+---
+import Base from '../layouts/Base.astro';
+import { categorias, grafo, hayDecisiones } from '../lib/cerebro.mjs';
+const g = grafo();
+const paleta = Object.fromEntries(categorias.map((c) => [c.id, { claro: c.claro, oscuro: c.oscuro }]));
+---
+<Base title="Grafo" subtitle="El cerebro como red, agrupado por categoría" active="grafo">
+  <p class="lead">
+    Cada <b>zona</b> es una categoría; cada punto, un fichero, una regla o un defecto. Una línea
+    de un defecto a una regla significa que esa regla nació de ese caso. Filtra por categoría,
+    arrastra para reorganizar y haz clic en un nodo para aislarlo.
+  </p>
+
+  <div class="filters">
+    <div class="fgroup">
+      <span class="lbl">Categoría</span>
+      <div class="fchips" id="g-cat">
+        {categorias.map((c) => (
+          <button class={`fchip cat-${c.id}`} data-v={c.id} aria-pressed="false">
+            <span class="pip"></span>{c.nombre}
+          </button>
+        ))}
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="lbl">Vista</span>
+      <div class="fchips">
+        <button class="fchip" id="g-solo" aria-pressed="false">Solo con defecto detrás</button>
+        <button class="fchip" id="g-reset">Reordenar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="glegend">
+    <span><svg class="sh" width="13" height="13"><rect x="1" y="2.5" width="11" height="8" rx="2.5" fill="currentColor" opacity=".5"/></svg>Fichero</span>
+    <span><svg class="sh" width="13" height="13"><circle cx="6.5" cy="6.5" r="4.5" fill="currentColor" opacity=".5"/></svg>Regla</span>
+    <span><svg class="sh" width="13" height="13"><path d="M6.5 1 12 6.5 6.5 12 1 6.5Z" fill="currentColor" opacity=".5"/></svg>Defecto</span>
+    {hayDecisiones && <span><svg class="sh" width="13" height="13"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".5"/></svg>Decisión</span>}
+    {hayDecisiones && <span><svg class="sh" width="15" height="15"><circle cx="7.5" cy="7.5" r="6" fill="none" stroke="currentColor" stroke-width="2" opacity=".7"/></svg>Tarea</span>}
+    <span style="margin-left:6px">El color es la categoría; el nombre va siempre al lado, en texto.</span>
+  </div>
+
+  <div class="gwrap">
+    <svg id="kg" width="100%" height="680" viewBox="0 0 1100 680" preserveAspectRatio="xMidYMid meet"
+         style="display:block;cursor:grab;touch-action:none"></svg>
+    <div id="kg-info" class="ginfo" style="display:none">
+      <div class="gt" id="kg-t"></div>
+      <div class="gm" id="kg-d"></div>
+      <div class="gp" id="kg-p"></div>
+    </div>
+  </div>
+
+  <script define:vars={{ g, categorias, paleta }}>
+    (function () {
+      var W = 1100, H = 680, CX = W / 2, CY = H / 2;
+      var oscuro = matchMedia('(prefers-color-scheme: dark)').matches;
+      var css = getComputedStyle(document.body);
+      var PAPEL = css.getPropertyValue('--paper').trim() || '#faf8f5';
+      var TINTA = css.getPropertyValue('--ink').trim() || '#14120f';
+      var TENUE = css.getPropertyValue('--line-2').trim() || '#d8d0c0';
+      var color = function (cat) {
+        var p = paleta[cat];
+        return p ? (oscuro ? p.oscuro : p.claro) : TINTA;
+      };
+      var NS = 'http://www.w3.org/2000/svg';
+      var svg = document.getElementById('kg');
+      var gG = document.createElementNS(NS, 'g'), gL = document.createElementNS(NS, 'g'),
+          gN = document.createElementNS(NS, 'g');
+      svg.appendChild(gG); svg.appendChild(gL); svg.appendChild(gN);
+
+      var cats = categorias.map(function (c) { return c.id; });
+      var ancla = {};
+      cats.forEach(function (c, i) {
+        var a = (i / cats.length) * Math.PI * 2 - Math.PI / 2;
+        var rx = cats.length <= 4 ? 300 : 360;
+        ancla[c] = { x: CX + Math.cos(a) * rx, y: CY + Math.sin(a) * 210 };
+        var tx = document.createElementNS(NS, 'text');
+        tx.textContent = categorias[i].nombre.toUpperCase();
+        tx.setAttribute('x', ancla[c].x); tx.setAttribute('y', ancla[c].y - 100);
+        tx.setAttribute('text-anchor', 'middle'); tx.setAttribute('font-size', 11);
+        tx.setAttribute('letter-spacing', '.15em'); tx.setAttribute('font-weight', 700);
+        tx.setAttribute('fill', color(c)); tx.setAttribute('opacity', .38);
+        gG.appendChild(tx);
+      });
+
+      var nodos = g.nodos.map(function (n) { return Object.assign({}, n); });
+      var por = {}; nodos.forEach(function (n) { por[n.id] = n; });
+      var aristas = g.aristas.filter(function (e) { return por[e.de] && por[e.a]; });
+      var vecinos = {}; nodos.forEach(function (n) { vecinos[n.id] = new Set(); });
+      aristas.forEach(function (e) { vecinos[e.de].add(e.a); vecinos[e.a].add(e.de); });
+      var conDefecto = new Set();
+      aristas.forEach(function (e) { if (e.tipo === 'previene') { conDefecto.add(e.de); conDefecto.add(e.a); } });
+
+      var tareas = g.nodos.filter(function (n) { return n.tipo === 'tarea'; }).map(function (n) { return n.id; });
+      function casa(n) {
+        if (n.tipo === 'tarea') {
+          var i = tareas.indexOf(n.id);
+          return { x: CX + (i - (tareas.length - 1) / 2) * 300, y: CY };
+        }
+        return ancla[n.categoria] || { x: CX, y: CY };
+      }
+      nodos.forEach(function (n) {
+        var h = casa(n);
+        n.x = h.x + (Math.random() - .5) * 120; n.y = h.y + (Math.random() - .5) * 120;
+        n.vx = 0; n.vy = 0;
+        n.r = n.tipo === 'tarea' ? 11 : n.tipo === 'fichero' ? 8 : n.tipo === 'defecto' ? 7 : n.tipo === 'decision' ? 6.5 : 5.5;
+        n.prio = n.tipo === 'tarea' ? 0 : n.tipo === 'fichero' ? 1 : n.tipo === 'decision' ? 2 : n.tipo === 'defecto' ? 3 : 4;
+      });
+
+      var lineas = aristas.map(function (e) {
+        var ln = document.createElementNS(NS, 'line');
+        ln.setAttribute('stroke', e.tipo === 'previene' ? color(por[e.de].categoria) : TENUE);
+        ln.setAttribute('stroke-width', e.tipo === 'contiene' ? 1 : 2);
+        if (e.tipo === 'previene') ln.setAttribute('stroke-dasharray', '4 3');
+        gL.appendChild(ln); return ln;
+      });
+
+      nodos.forEach(function (n) {
+        var el = document.createElementNS(NS, 'g'); el.style.cursor = 'grab';
+        var sh, c = color(n.categoria);
+        if (n.tipo === 'fichero') {
+          sh = document.createElementNS(NS, 'rect');
+          sh.setAttribute('x', -n.r); sh.setAttribute('y', -n.r * .7);
+          sh.setAttribute('width', n.r * 2); sh.setAttribute('height', n.r * 1.4); sh.setAttribute('rx', 3);
+        } else if (n.tipo === 'defecto') {
+          sh = document.createElementNS(NS, 'path');
+          sh.setAttribute('d', 'M0 ' + (-n.r) + ' L' + n.r + ' 0 L0 ' + n.r + ' L' + (-n.r) + ' 0 Z');
+        } else {
+          sh = document.createElementNS(NS, 'circle'); sh.setAttribute('r', n.r);
+        }
+        // cinco formas, una por tipo: la forma dice qué es y el color dice de qué categoría
+        var hueco = n.tipo === 'tarea' || n.tipo === 'decision';
+        sh.setAttribute('fill', hueco ? PAPEL : c);
+        sh.setAttribute('stroke', hueco ? (n.tipo === 'tarea' ? TINTA : c) : PAPEL);
+        sh.setAttribute('stroke-width', hueco ? 2.4 : 1.6);
+        var tx = document.createElementNS(NS, 'text');
+        tx.textContent = n.etiqueta.length > 26 ? n.etiqueta.slice(0, 25) + '…' : n.etiqueta;
+        tx.setAttribute('font-size', n.prio < 2 ? 11.5 : 10.5);
+        tx.setAttribute('font-weight', n.prio < 2 ? 700 : 500);
+        tx.setAttribute('fill', TINTA);                    // el texto va en tinta, nunca en el color
+        tx.setAttribute('x', n.r + 5); tx.setAttribute('y', 3.5);
+        tx.setAttribute('paint-order', 'stroke');
+        tx.setAttribute('stroke', PAPEL); tx.setAttribute('stroke-width', 3.5);
+        tx.style.pointerEvents = 'none';
+        el.appendChild(sh); el.appendChild(tx); gN.appendChild(el);
+        n.el = el; n.tx = tx;
+      });
+
+      var fCat = new Set(), soloDef = false, sel = null;
+      function visible(n) {
+        if (fCat.size && n.categoria && !fCat.has(n.categoria)) return false;
+        if (fCat.size && !n.categoria && n.tipo !== 'tarea') return false;
+        if (soloDef && !conDefecto.has(n.id)) return false;
+        return true;
+      }
+
+      var info = document.getElementById('kg-info');
+      function muestra(n) {
+        if (!n) { info.style.display = 'none'; return; }
+        document.getElementById('kg-t').textContent = n.etiqueta + ' · ' + (n.titulo || '');
+        document.getElementById('kg-d').textContent = n.detalle || '';
+        document.getElementById('kg-p').textContent = n.ruta || '';
+        info.style.setProperty('--cat', color(n.categoria));
+        info.style.display = 'block';
+      }
+
+      var frame = 0;
+      function pinta() {
+        aristas.forEach(function (e, i) {
+          var a = por[e.de], b = por[e.a], ln = lineas[i];
+          var on = visible(a) && visible(b);
+          if (!on) { ln.setAttribute('opacity', 0); return; }
+          ln.setAttribute('x1', a.x); ln.setAttribute('y1', a.y);
+          ln.setAttribute('x2', b.x); ln.setAttribute('y2', b.y);
+          ln.setAttribute('opacity', sel ? ((e.de === sel || e.a === sel) ? .95 : .05)
+                                         : (e.tipo === 'contiene' ? .45 : .9));
+        });
+        nodos.forEach(function (n) {
+          n.el.setAttribute('transform', 'translate(' + n.x + ',' + n.y + ')');
+          var op = !visible(n) ? 0 : sel ? ((n.id === sel || vecinos[sel].has(n.id)) ? 1 : .1) : 1;
+          n.el.setAttribute('opacity', op);
+          n.el.style.pointerEvents = op ? 'auto' : 'none';
+        });
+        if (++frame % 5 === 0) etiquetas();
+      }
+      function etiquetas() {
+        var cajas = [];
+        nodos.forEach(function (n) {
+          if (visible(n)) cajas.push([n.x - n.r - 1, n.y - n.r - 1, n.x + n.r + 1, n.y + n.r + 1]);
+        });
+        nodos.slice().sort(function (a, b) { return a.prio - b.prio; }).forEach(function (n) {
+          if (!visible(n) || (sel && n.id !== sel && !vecinos[sel].has(n.id))) {
+            n.tx.setAttribute('opacity', 0); return;
+          }
+          var w = n.tx.textContent.length * (n.prio < 2 ? 6.6 : 5.6);
+          var caja = [n.x + n.r + 4, n.y - 7, n.x + n.r + 6 + w, n.y + 7];
+          var choca = cajas.some(function (c) {
+            return !(caja[2] < c[0] || caja[0] > c[2] || caja[3] < c[1] || caja[1] > c[3]);
+          });
+          n.tx.setAttribute('opacity', choca ? 0 : 1);
+          if (!choca) cajas.push(caja);
+        });
+      }
+
+      var alfa = 1, corriendo = false, arrastre = null;
+      function empuja() { alfa = 1; if (!corriendo) { corriendo = true; requestAnimationFrame(paso); } }
+      function paso() {
+        var vis = nodos.filter(visible);
+        for (var i = 0; i < vis.length; i++) {
+          var a = vis[i];
+          for (var j = i + 1; j < vis.length; j++) {
+            var b = vis[j], dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy || .01;
+            var d = Math.sqrt(d2), f = Math.min(2400 / d2, 3), ux = dx / d, uy = dy / d;
+            a.vx += ux * f; a.vy += uy * f; b.vx -= ux * f; b.vy -= uy * f;
+          }
+        }
+        aristas.forEach(function (e) {
+          var a = por[e.de], b = por[e.a];
+          if (!visible(a) || !visible(b)) return;
+          var dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || .01;
+          var reposo = e.tipo === 'contiene' ? 62 : 88;
+          var f = (d - reposo) * .022, ux = dx / d, uy = dy / d;
+          a.vx += ux * f; a.vy += uy * f; b.vx -= ux * f; b.vy -= uy * f;
+        });
+        vis.forEach(function (n) {
+          var h = casa(n);
+          if (n.tipo === 'tarea' && !n.movido) { n.x = h.x; n.y = h.y; n.vx = n.vy = 0; return; }
+          n.vx += (h.x - n.x) * .02; n.vy += (h.y - n.y) * .02;
+          if (n.fijo) { n.vx = n.vy = 0; return; }
+          n.vx *= .86; n.vy *= .86;
+          n.x += Math.max(-8, Math.min(8, n.vx)) * alfa;
+          n.y += Math.max(-8, Math.min(8, n.vy)) * alfa;
+          n.x = Math.max(70, Math.min(W - 30, n.x));
+          n.y = Math.max(24, Math.min(H - 24, n.y));
+        });
+        pinta();
+        alfa *= .985;
+        if (alfa > .015 || arrastre) requestAnimationFrame(paso);
+        else { corriendo = false; etiquetas(); }
+      }
+
+      function aSvg(ev) {
+        var rc = svg.getBoundingClientRect();
+        return { x: (ev.clientX - rc.left) * (W / rc.width), y: (ev.clientY - rc.top) * (H / rc.height) };
+      }
+      nodos.forEach(function (n) {
+        n.el.addEventListener('pointerdown', function (ev) {
+          ev.preventDefault(); arrastre = n; n.fijo = true; n.solto = false;
+          n.el.setPointerCapture(ev.pointerId); svg.style.cursor = 'grabbing'; empuja();
+        });
+        n.el.addEventListener('pointermove', function (ev) {
+          if (arrastre !== n) return;
+          var p = aSvg(ev); n.solto = true; n.movido = true; n.x = p.x; n.y = p.y; pinta();
+        });
+        n.el.addEventListener('pointerup', function () {
+          if (arrastre !== n) return;
+          arrastre = null; svg.style.cursor = 'grab';
+          if (!n.solto) { sel = (sel === n.id ? null : n.id); muestra(sel ? n : null); }
+          pinta(); etiquetas(); empuja();
+        });
+      });
+      svg.addEventListener('pointerdown', function (ev) {
+        if (ev.target === svg || ev.target.parentNode === gG) {
+          sel = null; muestra(null); pinta(); etiquetas();
+        }
+      });
+      document.getElementById('g-cat').addEventListener('click', function (ev) {
+        var b = ev.target.closest('.fchip'); if (!b || !b.dataset.v) return;
+        var v = b.dataset.v;
+        if (fCat.has(v)) { fCat.delete(v); b.setAttribute('aria-pressed', 'false'); }
+        else { fCat.add(v); b.setAttribute('aria-pressed', 'true'); }
+        sel = null; muestra(null); empuja();
+      });
+      document.getElementById('g-solo').addEventListener('click', function () {
+        soloDef = !soloDef; this.setAttribute('aria-pressed', String(soloDef));
+        sel = null; muestra(null); empuja();
+      });
+      document.getElementById('g-reset').addEventListener('click', function () {
+        nodos.forEach(function (n) {
+          var h = casa(n); n.fijo = false; n.movido = false;
+          n.x = h.x + (Math.random() - .5) * 120; n.y = h.y + (Math.random() - .5) * 120;
+          n.vx = n.vy = 0;
+        });
+        empuja();
+      });
+      empuja();
+    })();
+  </script>
+</Base>

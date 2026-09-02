@@ -1,0 +1,26 @@
+---
+// La marca del visor. Por defecto, un nudo kumiko dibujado a mano: el
+// entramado de listones que sostiene el panel. Un cerebro puede poner el suyo
+// con "marca": { "logo": "ruta/al.svg", "nombre": "..." } en kumiko.json.
+import fs from 'node:fs';
+import path from 'node:path';
+import { RAIZ, marca } from '../lib/cerebro.mjs';
+
+const { size = 30 } = Astro.props;
+let propio = null;
+if (marca.logo) {
+  const p = path.join(RAIZ, marca.logo);
+  if (fs.existsSync(p)) propio = fs.readFileSync(p, 'utf8');
+}
+---
+{propio
+  ? <span class="logo" style={`display:block;width:${size * 3.4}px`} set:html={propio} />
+  : (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-label="kumiko"
+         stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <rect x="2.8" y="2.8" width="26.4" height="26.4" rx="4" />
+      <path d="M2.8 16H29.2M16 2.8V29.2" />
+      <path d="M6.4 6.4 25.6 25.6M25.6 6.4 6.4 25.6" opacity=".55" />
+    </svg>
+  )}
+<style>.logo :global(svg) { width: 100%; height: auto; display: block; }</style>

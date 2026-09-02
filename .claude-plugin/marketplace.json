@@ -1,0 +1,14 @@
+{
+  "name": "kumiko",
+  "owner": { "name": "Fusuma" },
+  "metadata": {
+    "description": "Motor de cerebro de contexto: reglas con id que un agente consulta por tarea."
+  },
+  "plugins": [
+    {
+      "name": "kumiko",
+      "source": "./",
+      "description": "Monta un cerebro de contexto en tu repo y sírveselo al agente por MCP: te entrevista para arrancarlo, exige evidencia para cada regla, y devuelve solo las reglas de la tarea que tienes entre manos."
+    }
+  ]
+}
