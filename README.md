@@ -287,7 +287,7 @@ Ese `git diff --exit-code` evita el fallo más común: alguien edita una regla, 
 | Síntoma | Qué pasa |
 |---|---|
 | `/mcp` muestra kumiko con **0 herramientas** o «failed» | No hay un Python >= 3.10 con `mcp` (`sh motor/instalar.sh`, paso 2), o el servidor no encuentra el cerebro. `sh /ruta/a/kumiko/motor/lanzar_servidor.sh --probar "algo"` te dice cuál de las dos, y `claude --debug=mcp` enseña el log. |
-| **«No encuentro ningún cerebro kumiko»** | No hay `kumiko.json` subiendo desde el proyecto. Deja un `.kumiko-cerebro` con la ruta. |
+| Las herramientas contestan **«Este proyecto todavía no tiene un cerebro kumiko»** | Es lo esperado en un proyecto nuevo: pide «inicia un cerebro kumiko aquí». Si el cerebro vive en otro repositorio, deja un `.kumiko-cerebro` con la ruta. El servidor lo detecta solo, sin reiniciar Claude, igual que cualquier regla que edites. |
 | `reglas_para_tarea` **no encuentra nada** | El `aplica_si` de tus ficheros no habla el idioma de la consulta. Reescríbelo con los términos que usaría la gente — no toques el motor. |
 | Devuelve **reglas que no tocaban** | Lo mismo por el otro lado: el `aplica_si` es demasiado genérico. La respuesta te dice en qué palabras casó. |
 | `comprobar.py` **falla tras editar** | Casi siempre es una cita a un id que no existe, o el índice de defectos desincronizado. El mensaje dice cuál. |

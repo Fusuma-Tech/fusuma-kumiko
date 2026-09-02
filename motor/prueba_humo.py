@@ -11,8 +11,9 @@ Comprueba, en este orden:
   3. el comprobador **detecta** un cerebro roto (si no, no está comprobando nada)
   4. el servidor responde por línea de comandos
   5. el servidor habla MCP de verdad por stdio: initialize, tools/list, tools/call
-  6. vigilar encuentra los incumplimientos que las comprobaciones declaran
-  7. el visor compila, si tiene las dependencias instaladas
+  6. el servidor arranca en una carpeta sin cerebro y dice cómo crearlo
+  7. vigilar encuentra los incumplimientos que las comprobaciones declaran
+  8. el visor compila, si tiene las dependencias instaladas
 
 Sale con código 1 si algo falla. Vale para CI.
 """
@@ -36,7 +37,7 @@ resultados: list[tuple[bool, str, str]] = []
 
 def paso(ok: bool, nombre: str, detalle: str = '') -> bool:
     resultados.append((ok, nombre, detalle))
-    print('  %s %-46s %s%s' % ((VERDE + '✓' + FIN) if ok else (ROJO + '✗' + FIN),
+    print('  %s %-52s %s%s' % ((VERDE + '✓' + FIN) if ok else (ROJO + '✗' + FIN),
                                nombre, GRIS, detalle + FIN))
     return ok
 
@@ -83,13 +84,14 @@ def main() -> int:
     paso(ok, 'el servidor responde por consola', detalle)
 
     paso(*prueba_stdio(cerebro))
+    paso(*prueba_sin_cerebro())
 
     # 6. las comprobaciones se ejecutan de verdad. Sobre el ejemplo, además, tienen
     # que encontrar los defectos plantados en src/: si no, vigilar no vigila.
     comps = corre([str(MOTOR / 'vigilar.py'), '--listar'], cwd=str(cerebro))
     n_comps = int(re.search(r'(\d+) comprobaciones', comps.stdout or '').group(1)) if re.search(r'(\d+) comprobaciones', comps.stdout or '') else 0
     if n_comps == 0:
-        print('  %s· %-46s %sel cerebro no declara comprobaciones; salta%s' % (GRIS, 'vigilar encuentra lo que declara', '', FIN))
+        print('  %s· %-52s %sel cerebro no declara comprobaciones; salta%s' % (GRIS, 'vigilar encuentra lo que declara', '', FIN))
     else:
         r = corre([str(MOTOR / 'vigilar.py'), '--todo'], cwd=str(cerebro))
         hallazgos = len(re.findall(r'^\s+\S*\x1b\[1m[A-Z][\w-]*-\d+', r.stdout, re.M)) or r.stdout.count('↳ ')
@@ -107,7 +109,7 @@ def main() -> int:
         paso(r.returncode == 0, 'el visor compila',
              'páginas generadas' if r.returncode == 0 else r.stderr.strip()[-140:])
     else:
-        print('  %s· %-46s %ssin node_modules; salta (cd visor && npm install)%s'
+        print('  %s· %-52s %ssin node_modules; salta (cd visor && npm install)%s'
               % (GRIS, 'el visor compila', '', FIN))
 
     fallos = [n for ok, n, _ in resultados if not ok]
@@ -157,6 +159,47 @@ def busca_python() -> tuple[str, str] | None:
     return None
 
 
+class Sesion:
+    """Una conversación MCP por stdio con el servidor, lo justo para probarlo."""
+
+    def __init__(self, python: str, cwd=None, env=None):
+        self.p = subprocess.Popen([python, str(MOTOR / 'servidor_mcp.py')], cwd=cwd,
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, env=env, text=True, bufsize=1)
+        self.n = 0
+
+    def envia(self, m):
+        self.p.stdin.write(json.dumps(m) + '\n')
+        self.p.stdin.flush()
+
+    def lee(self, t=20):
+        fin = time.time() + t
+        while time.time() < fin:
+            linea = self.p.stdout.readline()
+            if linea.strip():
+                return json.loads(linea)
+        return None
+
+    def llama(self, metodo, params=None):
+        self.n += 1
+        self.envia({'jsonrpc': '2.0', 'id': self.n, 'method': metodo, 'params': params or {}})
+        return (self.lee() or {}).get('result', {})
+
+    def herramienta(self, nombre, **argumentos) -> str:
+        r = self.llama('tools/call', {'name': nombre, 'arguments': argumentos})
+        return ''.join(c.get('text', '') for c in r.get('content', []))
+
+    def abre(self) -> bool:
+        ok = bool(self.llama('initialize', {
+            'protocolVersion': '2024-11-05', 'capabilities': {},
+            'clientInfo': {'name': 'prueba_humo', 'version': '0'}}))
+        self.envia({'jsonrpc': '2.0', 'method': 'notifications/initialized'})
+        return ok
+
+    def cierra(self):
+        self.p.terminate()
+
+
 def prueba_stdio(cerebro: pathlib.Path) -> tuple[bool, str, str]:
     """Habla MCP de verdad con el servidor: es por donde se rompen los MCP."""
     nombre = 'el servidor habla MCP por stdio'
@@ -164,37 +207,15 @@ def prueba_stdio(cerebro: pathlib.Path) -> tuple[bool, str, str]:
     if not encontrado:
         return False, nombre, PISTA_MCP
     python, version_mcp = encontrado
-    env = dict(os.environ, KUMIKO_CEREBRO=str(cerebro))
-    p = subprocess.Popen([python, str(MOTOR / 'servidor_mcp.py')],
-                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                         env=env, text=True, bufsize=1)
+    s = Sesion(python, env=dict(os.environ, KUMIKO_CEREBRO=str(cerebro)))
     try:
-        def envia(m):
-            p.stdin.write(json.dumps(m) + '\n')
-            p.stdin.flush()
-
-        def lee(t=20):
-            fin = time.time() + t
-            while time.time() < fin:
-                linea = p.stdout.readline()
-                if linea.strip():
-                    return json.loads(linea)
-            return None
-
-        envia({'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {
-            'protocolVersion': '2024-11-05', 'capabilities': {},
-            'clientInfo': {'name': 'prueba_humo', 'version': '0'}}})
-        if not (lee() or {}).get('result'):
+        if not s.abre():
             return False, nombre, 'sin respuesta al initialize'
-        envia({'jsonrpc': '2.0', 'method': 'notifications/initialized'})
-        envia({'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'})
-        tools = [t['name'] for t in (lee() or {}).get('result', {}).get('tools', [])]
+        tools = [t['name'] for t in s.llama('tools/list').get('tools', [])]
         faltan = {'reglas_para_tarea', 'regla', 'defecto', 'checklist_entrega'} - set(tools)
         if faltan:
             return False, nombre, 'faltan herramientas: %s' % ', '.join(sorted(faltan))
-        envia({'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {
-            'name': 'reglas_para_tarea', 'arguments': {'tarea': consulta_que_casa(cerebro)}}})
-        txt = ''.join(c.get('text', '') for c in (lee() or {}).get('result', {}).get('content', []))
+        txt = s.herramienta('reglas_para_tarea', tarea=consulta_que_casa(cerebro))
         if not txt:
             return False, nombre, 'tools/call no devolvió contenido'
         if not re.search(r'`[A-Z]{2,3}(?:-[A-Z]{2,4})?-\d+`', txt):
@@ -204,7 +225,33 @@ def prueba_stdio(cerebro: pathlib.Path) -> tuple[bool, str, str]:
     except Exception as e:                                   # noqa: BLE001
         return False, nombre, '%s: %s' % (type(e).__name__, e)
     finally:
-        p.terminate()
+        s.cierra()
+
+
+def prueba_sin_cerebro() -> tuple[bool, str, str]:
+    """Quien acaba de instalar el plugin no tiene cerebro: el servidor debe arrancar
+    igual y decir cómo crearlo, no morir y enseñar «failed» en /mcp."""
+    nombre = 'el servidor arranca sin cerebro y explica qué hacer'
+    encontrado = busca_python()
+    if not encontrado:
+        return False, nombre, PISTA_MCP
+    python, _ = encontrado
+    vacio = tempfile.mkdtemp(prefix='kumiko-sin-cerebro-')
+    env = {k: v for k, v in os.environ.items() if k != 'KUMIKO_CEREBRO'}
+    s = Sesion(python, cwd=vacio, env=env)
+    try:
+        if not s.abre():
+            err = s.p.stderr.readline().strip() if s.p.poll() is not None else ''
+            return False, nombre, 'el servidor muere al arrancar sin cerebro · %s' % (err or 'sin detalle')
+        txt = s.herramienta('reglas_para_tarea', tarea='cualquier cosa')
+        if 'inicia un cerebro kumiko' not in txt:
+            return False, nombre, 'no explica cómo crear el cerebro: %s' % txt[:70]
+        return True, nombre, 'responde con la forma de iniciarlo'
+    except Exception as e:                                   # noqa: BLE001
+        return False, nombre, '%s: %s' % (type(e).__name__, e)
+    finally:
+        s.cierra()
+        shutil.rmtree(vacio, ignore_errors=True)
 
 
 if __name__ == '__main__':

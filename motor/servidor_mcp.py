@@ -36,6 +36,54 @@ def carga(argumento=None) -> Cerebro:
     return Cerebro(Config(localiza(argumento)))
 
 
+SIN_CEREBRO = (
+    'Este proyecto todavía no tiene un cerebro kumiko (no hay `kumiko.json` en esta carpeta '
+    'ni en las de arriba). Dos salidas: pide «inicia un cerebro kumiko aquí» y te entrevisto '
+    'para montarlo, o si el cerebro vive en otro repositorio, deja un fichero `.kumiko-cerebro` '
+    'en la raíz del proyecto con su ruta dentro. Detalle:\n%s')
+
+
+class _SinCerebro(Exception):
+    pass
+
+
+class Estado:
+    """El cerebro, cargado cuando hace falta y recargado cuando cambia.
+
+    El servidor arranca aunque no haya cerebro: quien acaba de instalar el plugin no
+    tiene ninguno todavía, y un servidor muerto solo le enseña «failed». Aquí cada
+    herramienta pregunta por el cerebro; si no existe recibe cómo crearlo, y en cuanto
+    aparece `kumiko.json` empieza a funcionar sin reiniciar Claude. Si algún markdown
+    cambia (una regla nueva, un defecto anotado), se relee: la firma es el mtime más
+    reciente, que cuesta unos stat."""
+
+    def __init__(self, argumento=None):
+        self.argumento = argumento
+        self.cerebro = None
+        self.firma = None
+        self.error = ''
+
+    def _firma(self, cfg) -> tuple:
+        ficheros = [cfg.raiz / 'kumiko.json', cfg.raiz / cfg.router, *cfg.markdown()]
+        return (len(ficheros), max((f.stat().st_mtime_ns for f in ficheros if f.exists()), default=0))
+
+    def obtener(self):
+        if self.cerebro is not None:
+            try:
+                firma = self._firma(self.cerebro.cfg)
+            except OSError:
+                firma = None
+            if firma == self.firma:
+                return self.cerebro
+        try:
+            c = carga(self.argumento)
+        except SystemExit as e:
+            self.cerebro, self.firma, self.error = None, None, str(e)
+            return None
+        self.cerebro, self.firma, self.error = c, self._firma(c.cfg), ''
+        return c
+
+
 def _clase_servidor():
     """El SDK cambió de nombre entre versiones: `FastMCP` en 1.x, `MCPServer` en 2.x.
 
@@ -60,32 +108,61 @@ def _clase_servidor():
 def servidor(ruta: str | None = None) -> None:
     Servidor, moderno = _clase_servidor()
 
-    c = carga(ruta)
-    cfg = c.cfg
+    estado = Estado(ruta)
+    inicial = estado.obtener()
+    nombre = inicial.cfg.nombre if inicial else 'este proyecto'
     extra = {'version': '0.1.0'} if moderno else {}
     app = Servidor(
         name='kumiko',
         **extra,
         instructions=(
-            'Cerebro de contexto del proyecto «%s». Llama a `reglas_para_tarea` ANTES de '
+            'Cerebro de contexto de «%s». Llama a `reglas_para_tarea` ANTES de '
             'escribir código, con una frase de lo que vas a tocar: devuelve solo las reglas '
             'aplicables, no el cerebro entero. Cita los ids en la MR. Antes de decir que algo '
             'está hecho, llama a `checklist_entrega`. Cuando una revisión te pille algo que no '
-            'estaba escrito, dilo: es material para una regla nueva.' % cfg.nombre),
+            'estaba escrito, dilo: es material para una regla nueva. Si el proyecto aún no '
+            'tiene cerebro, las herramientas te dirán cómo iniciarlo.' % nombre),
     )
+
+    def cerebro():
+        c = estado.obtener()
+        if c is None:
+            raise _SinCerebro(SIN_CEREBRO % estado.error.split(chr(10))[0])
+        return c
+
+    def con_cerebro(fn):
+        """Envuelve una herramienta: sin cerebro devuelve el aviso como texto normal."""
+        import functools
+
+        @functools.wraps(fn)
+        def envuelta(*a, **k):
+            try:
+                return fn(*a, **k)
+            except _SinCerebro as e:
+                return str(e)
+        return envuelta
 
     @app.tool(description=(
         'Devuelve las reglas del cerebro que aplican a lo que vas a hacer. Descríbelo con los '
         'términos técnicos que vas a tocar. Opcionalmente filtra por momento del trabajo.'))
+    @con_cerebro
     def reglas_para_tarea(tarea: str, momento: str | None = None) -> str:
+        c = cerebro()
+        cfg = c.cfg
         return c.responde(tarea, momento)
 
     @app.tool(description='Texto completo de una regla por su id.')
+    @con_cerebro
     def regla(id: str) -> str:
+        c = cerebro()
+        cfg = c.cfg
         return c.texto(id.strip()) or 'No existe la regla «%s». Mira `%s`.' % (id, cfg.salida_indice)
 
     @app.tool(description='Texto completo de un defecto ya pagado, por su id: §32, §7…')
+    @con_cerebro
     def defecto(id: str) -> str:
+        c = cerebro()
+        cfg = c.cfg
         i = id.strip()
         i = i if i.startswith('§') else '§' + i.lstrip('#§')
         return c.texto(i) or 'No existe el defecto «%s».' % id
@@ -93,7 +170,10 @@ def servidor(ruta: str | None = None) -> None:
     @app.tool(description=(
         'La lista de comprobación previa a la entrega. Llámalo al terminar cualquier cambio, '
         'antes de decir que está hecho.'))
+    @con_cerebro
     def checklist_entrega() -> str:
+        c = cerebro()
+        cfg = c.cfg
         from nucleo import lee_frontmatter
         for f in c.ficheros.values():
             if f['tipo'] == 'checklist':
@@ -104,7 +184,10 @@ def servidor(ruta: str | None = None) -> None:
     @app.tool(description=(
         'Busca un término literal en todo el cerebro y devuelve los ids donde aparece. Para '
         'cuando sabes la palabra exacta.'))
+    @con_cerebro
     def buscar(texto: str, maximo: int = 15) -> str:
+        c = cerebro()
+        cfg = c.cfg
         pat = re.compile(re.escape(texto), re.I)
         salida = []
         for p in cfg.markdown():
@@ -123,7 +206,10 @@ def servidor(ruta: str | None = None) -> None:
     @app.tool(description=(
         'Mapa del cerebro: categorías, momentos y ficheros. Para orientarse la primera vez o '
         'cuando `reglas_para_tarea` no encuentra nada.'))
+    @con_cerebro
     def mapa() -> str:
+        c = cerebro()
+        cfg = c.cfg
         L = ['# %s' % cfg.nombre, '']
         for cat in cfg.categorias:
             fs = [f for f in c.ficheros.values() if f['categoria'] == cat['id']]
