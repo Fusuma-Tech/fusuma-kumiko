@@ -71,18 +71,19 @@ Comprueba que ha entrado con `/skills` (salen cuatro) y `/mcp` (el servidor `kum
 herramientas).
 
 **Requisitos.** Los scripts del motor valen con Python 3.9 en adelante y no necesitan nada más.
-El servidor MCP, además, necesita el paquete `mcp`, que exige **Python >= 3.10** (vale 1.x o 2.x):
+El servidor MCP necesita además el paquete `mcp`, que exige **Python >= 3.10**. Una sola orden lo
+deja listo, sin tocar ningún Python del sistema:
 
 ```sh
-python3 --version                                    # si es 3.10 o más:
-python3 -m pip install mcp
-# En macOS el python3 del sistema es 3.9; instala uno con Homebrew:
-brew install python@3.12 && python3.12 -m pip install mcp
+sh /ruta/a/kumiko/motor/instalar.sh
 ```
 
-No hace falta tocar nada más: el plugin arranca el servidor con `motor/lanzar_servidor.sh`, que
-busca el primer Python válido (`python3.13`… `python3.10`, Homebrew, `python3`). Si el tuyo vive
-en otro sitio, `export KUMIKO_PYTHON=/ruta/a/python3`.
+Busca un Python >= 3.10 (`python3.12`, Homebrew…), crea un entorno virtual en `~/.kumiko/venv` e
+instala `mcp` dentro. El plugin arranca el servidor con `motor/lanzar_servidor.sh`, que mira ese
+entorno primero y después los Pythons habituales, así que no hay que configurar nada. En macOS el
+`python3` del sistema es 3.9 y Homebrew no deja hacer `pip install` fuera de un venv: por eso el
+instalador, no un `pip install` a mano. Si no tienes ningún Python moderno: `brew install
+python@3.12` y repite. Si ya tienes uno con `mcp` en otro sitio, `export KUMIKO_PYTHON=/ruta`.
 
 ## 3. Móntalo en tu proyecto
 
@@ -255,6 +256,7 @@ frontmatter, no el algoritmo**.
 ## 7. Probarlo
 
 ```bash
+sh motor/instalar.sh                         # una vez: el entorno con mcp
 python3 motor/prueba_humo.py                 # sobre el cerebro de ejemplo
 python3 motor/prueba_humo.py /mi/cerebro     # sobre el tuyo
 ```
@@ -284,7 +286,7 @@ Ese `git diff --exit-code` evita el fallo más común: alguien edita una regla, 
 
 | Síntoma | Qué pasa |
 |---|---|
-| `/mcp` muestra kumiko con **0 herramientas** o «failed» | No hay un Python >= 3.10 con `mcp` (mira los requisitos del paso 2), o el servidor no encuentra el cerebro. `sh /ruta/a/kumiko/motor/lanzar_servidor.sh --probar "algo"` te dice cuál de las dos, y `claude --debug=mcp` enseña el log. |
+| `/mcp` muestra kumiko con **0 herramientas** o «failed» | No hay un Python >= 3.10 con `mcp` (`sh motor/instalar.sh`, paso 2), o el servidor no encuentra el cerebro. `sh /ruta/a/kumiko/motor/lanzar_servidor.sh --probar "algo"` te dice cuál de las dos, y `claude --debug=mcp` enseña el log. |
 | **«No encuentro ningún cerebro kumiko»** | No hay `kumiko.json` subiendo desde el proyecto. Deja un `.kumiko-cerebro` con la ruta. |
 | `reglas_para_tarea` **no encuentra nada** | El `aplica_si` de tus ficheros no habla el idioma de la consulta. Reescríbelo con los términos que usaría la gente — no toques el motor. |
 | Devuelve **reglas que no tocaban** | Lo mismo por el otro lado: el `aplica_si` es demasiado genérico. La respuesta te dice en qué palabras casó. |
@@ -294,7 +296,7 @@ Ese `git diff --exit-code` evita el fallo más común: alguien edita una regla, 
 ## 9. Qué hay aquí
 
 ```
-motor/          los scripts, el núcleo compartido y el lanzador del servidor
+motor/          los scripts, el núcleo compartido, el instalador y el lanzador del servidor
 skills/         las cuatro skills del plugin
 visor/          el panel en Astro, sirve cualquier cerebro
 plantillas/     los ficheros de arranque, comentados, y el hook de pre-commit
@@ -310,7 +312,7 @@ python3 motor/servidor_mcp.py --medir          # coste frente a cargarlo todo
 python3 motor/prueba_humo.py         # el ciclo entero
 ```
 
-Python puro (3.9 o más), sin dependencias salvo `mcp` para el servidor, que pide Python >= 3.10.
+Python puro (3.9 o más), sin dependencias salvo `mcp` para el servidor, que pide Python >= 3.10 y se instala con `sh motor/instalar.sh`.
 
 ## Lo que no hace
 

@@ -5,7 +5,8 @@
 # 3.9 de Xcode. Claude Code lanza el servidor sin tu PATH de terminal, así que aquí
 # se busca uno válido en los sitios habituales en vez de confiar en `python3`.
 #
-#   KUMIKO_PYTHON=/ruta/a/python  fuerza un intérprete concreto.
+# Orden de búsqueda: KUMIKO_PYTHON si está definido; el entorno que crea
+# motor/instalar.sh (~/.kumiko/venv, o KUMIKO_VENV); y después los Pythons habituales.
 #
 # Cualquier argumento se pasa tal cual a servidor_mcp.py (la raíz del proyecto).
 
@@ -17,6 +18,11 @@ sirve() {
   [ -n "$1" ] && command -v "$1" >/dev/null 2>&1 &&
     "$1" -c 'import sys; assert sys.version_info >= (3, 10); import mcp' >/dev/null 2>&1
 }
+
+VENV="${KUMIKO_VENV:-$HOME/.kumiko/venv}"
+if [ -z "$KUMIKO_PYTHON" ] && sirve "$VENV/bin/python"; then
+  exec "$VENV/bin/python" "$SERVIDOR" "$@"
+fi
 
 if [ -n "$KUMIKO_PYTHON" ]; then
   if sirve "$KUMIKO_PYTHON"; then exec "$KUMIKO_PYTHON" "$SERVIDOR" "$@"; fi
@@ -33,8 +39,8 @@ done
 cat >&2 <<'MSG'
 kumiko: no encuentro un Python >= 3.10 con el paquete `mcp`.
   El servidor MCP lo necesita (los demás scripts del motor valen con 3.9).
-  En macOS:   brew install python@3.12 && python3.12 -m pip install mcp
-  En Linux:   python3 -m pip install mcp   (si tu python3 ya es >= 3.10)
-  Si lo tienes en otra ruta:  export KUMIKO_PYTHON=/ruta/a/python3
+  Arréglalo con una orden:   sh /ruta/a/kumiko/motor/instalar.sh
+  (crea ~/.kumiko/venv con mcp dentro; en macOS antes: brew install python@3.12)
+  Si ya tienes uno en otra ruta:  export KUMIKO_PYTHON=/ruta/a/python3
 MSG
 exit 1

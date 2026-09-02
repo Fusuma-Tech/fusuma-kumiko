@@ -133,15 +133,16 @@ def consulta_que_casa(cerebro: pathlib.Path) -> str:
     return next(iter(c.reglas.values()))['titulo'] if c.reglas else 'reglas'
 
 
-PISTA_MCP = ('hace falta Python >= 3.10 con el paquete mcp · '
-             'macOS: brew install python@3.12 && python3.12 -m pip install mcp')
+PISTA_MCP = 'hace falta Python >= 3.10 con el paquete mcp · lanza:  sh motor/instalar.sh'
 
 
 def busca_python() -> tuple[str, str] | None:
     """El intérprete con que Claude Code lanzará el servidor: el mismo criterio que
     motor/lanzar_servidor.sh (>= 3.10 y con `mcp`), empezando por el actual."""
     forzado = os.environ.get('KUMIKO_PYTHON')
+    venv = pathlib.Path(os.environ.get('KUMIKO_VENV') or pathlib.Path.home() / '.kumiko' / 'venv')
     candidatos = [forzado] if forzado else [
+        str(venv / 'bin' / 'python'), str(venv / 'Scripts' / 'python.exe'),
         sys.executable, 'python3.13', 'python3.12', 'python3.11', 'python3.10',
         '/opt/homebrew/bin/python3', '/usr/local/bin/python3', 'python3']
     for py in candidatos:
