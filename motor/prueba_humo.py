@@ -16,6 +16,8 @@ Comprueba, en este orden:
 
 Sale con código 1 si algo falla. Vale para CI.
 """
+from __future__ import annotations
+
 import json
 import os
 import pathlib
@@ -74,8 +76,11 @@ def main() -> int:
 
     r = corre([str(MOTOR / 'servidor_mcp.py'), '--probar', 'guardo un registro y evito duplicados'],
               cwd=str(cerebro))
-    paso(r.returncode == 0 and 'Reglas que aplican' in r.stdout,
-         'el servidor responde por consola', '%d caracteres' % len(r.stdout))
+    ok = r.returncode == 0 and 'Reglas que aplican' in r.stdout
+    detalle = '%d caracteres' % len(r.stdout)
+    if not ok and r.stderr.strip():
+        detalle = 'error: ' + r.stderr.strip().splitlines()[-1]
+    paso(ok, 'el servidor responde por consola', detalle)
 
     paso(*prueba_stdio(cerebro))
 
@@ -135,7 +140,7 @@ def prueba_stdio(cerebro: pathlib.Path) -> tuple[bool, str, str]:
         import importlib.metadata as md
         version_mcp = md.version('mcp')
     except Exception:  # noqa: BLE001
-        return False, nombre, 'falta el paquete mcp (pip install mcp)'
+        return False, nombre, 'falta el paquete mcp (python3 -m pip install mcp)'
     env = dict(os.environ, KUMIKO_CEREBRO=str(cerebro))
     p = subprocess.Popen([sys.executable, str(MOTOR / 'servidor_mcp.py')],
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

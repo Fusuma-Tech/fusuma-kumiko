@@ -68,7 +68,7 @@ En GitLab autoalojado el `.git` final es obligatorio. Desde una copia local, la 
 Para trastear sin instalar, cargándolo solo en esa sesión: `claude --plugin-dir /ruta/a/kumiko`.
 
 Comprueba que ha entrado con `/skills` (salen cuatro) y `/mcp` (el servidor `kumiko`, con seis
-herramientas). El servidor necesita `pip install mcp` (>= 2.0).
+herramientas). El servidor necesita `python3 -m pip install mcp` (funciona con mcp 1.x y 2.x).
 
 ## 3. Móntalo en tu proyecto
 
@@ -270,7 +270,7 @@ Ese `git diff --exit-code` evita el fallo más común: alguien edita una regla, 
 
 | Síntoma | Qué pasa |
 |---|---|
-| `/mcp` muestra kumiko con **0 herramientas** | Falta `pip install mcp`, o el servidor no encuentra el cerebro. `claude --debug=mcp` y mira el log. |
+| `/mcp` muestra kumiko con **0 herramientas** | Falta `python3 -m pip install mcp`, o el servidor no encuentra el cerebro. `claude --debug=mcp` y mira el log. |
 | **«No encuentro ningún cerebro kumiko»** | No hay `kumiko.json` subiendo desde el proyecto. Deja un `.kumiko-cerebro` con la ruta. |
 | `reglas_para_tarea` **no encuentra nada** | El `aplica_si` de tus ficheros no habla el idioma de la consulta. Reescríbelo con los términos que usaría la gente — no toques el motor. |
 | Devuelve **reglas que no tocaban** | Lo mismo por el otro lado: el `aplica_si` es demasiado genérico. La respuesta te dice en qué palabras casó. |

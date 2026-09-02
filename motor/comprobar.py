@@ -13,6 +13,8 @@ Cinco comprobaciones:
   4. Ningún id está duplicado.
   5. El índice de defectos cuadra con sus secciones.
 """
+from __future__ import annotations
+
 import pathlib
 import posixpath
 import re

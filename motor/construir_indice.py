@@ -8,6 +8,8 @@ dos semanas.
 
     python3 motor/construir_indice.py [ruta-al-cerebro]
 """
+from __future__ import annotations
+
 import datetime
 import json
 import pathlib

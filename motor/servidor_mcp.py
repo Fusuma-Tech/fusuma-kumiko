@@ -13,6 +13,8 @@ completo de una, la pide.
 La raíz del cerebro se busca subiendo directorios desde donde se ejecuta, o se
 pasa por argumento, o por la variable de entorno KUMIKO_CEREBRO.
 """
+from __future__ import annotations
+
 import os
 import pathlib
 import re
@@ -48,7 +50,7 @@ def _clase_servidor():
             return FastMCP, False
         except ImportError as e:
             raise SystemExit(
-                'Falta el paquete mcp. Instálalo con:  pip install mcp\n(%s)' % e) from e
+                'Falta el paquete mcp. Instálalo con:  python3 -m pip install mcp\n(%s)' % e) from e
 
 
 def servidor(ruta: str | None = None) -> None:
