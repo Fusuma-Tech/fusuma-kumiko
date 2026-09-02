@@ -34,14 +34,32 @@ def carga(argumento=None) -> Cerebro:
     return Cerebro(Config(localiza(argumento)))
 
 
+def _clase_servidor():
+    """El SDK cambió de nombre entre versiones: `FastMCP` en 1.x, `MCPServer` en 2.x.
+
+    Pip da una u otra según la máquina, y las dos tienen la misma superficie que
+    usamos aquí (`tool`, `run`). Se acepta cualquiera en vez de exigir una."""
+    try:
+        from mcp.server.mcpserver import MCPServer          # mcp >= 2.0
+        return MCPServer, True
+    except ImportError:
+        try:
+            from mcp.server.fastmcp import FastMCP          # mcp 1.x
+            return FastMCP, False
+        except ImportError as e:
+            raise SystemExit(
+                'Falta el paquete mcp. Instálalo con:  pip install mcp\n(%s)' % e) from e
+
+
 def servidor(ruta: str | None = None) -> None:
-    from mcp.server.mcpserver import MCPServer
+    Servidor, moderno = _clase_servidor()
 
     c = carga(ruta)
     cfg = c.cfg
-    app = MCPServer(
+    extra = {'version': '0.1.0'} if moderno else {}
+    app = Servidor(
         name='kumiko',
-        version='0.1.0',
+        **extra,
         instructions=(
             'Cerebro de contexto del proyecto «%s». Llama a `reglas_para_tarea` ANTES de '
             'escribir código, con una frase de lo que vas a tocar: devuelve solo las reglas '

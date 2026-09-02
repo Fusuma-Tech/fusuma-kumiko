@@ -132,8 +132,9 @@ def prueba_stdio(cerebro: pathlib.Path) -> tuple[bool, str, str]:
     """Habla MCP de verdad con el servidor: es por donde se rompen los MCP."""
     nombre = 'el servidor habla MCP por stdio'
     try:
-        import mcp  # noqa: F401
-    except ImportError:
+        import importlib.metadata as md
+        version_mcp = md.version('mcp')
+    except Exception:  # noqa: BLE001
         return False, nombre, 'falta el paquete mcp (pip install mcp)'
     env = dict(os.environ, KUMIKO_CEREBRO=str(cerebro))
     p = subprocess.Popen([sys.executable, str(MOTOR / 'servidor_mcp.py')],
@@ -170,7 +171,7 @@ def prueba_stdio(cerebro: pathlib.Path) -> tuple[bool, str, str]:
             return False, nombre, 'tools/call no devolvió contenido'
         if not re.search(r'`[A-Z]{2,3}(?:-[A-Z]{2,4})?-\d+`', txt):
             return False, nombre, 'la respuesta no trae ninguna regla: %s' % txt.split(chr(10))[0][:70]
-        return True, nombre, '%d herramientas · %d caracteres con reglas dentro' % (len(tools), len(txt))
+        return True, nombre, '%d herramientas · %d caracteres con reglas dentro · mcp %s' % (len(tools), len(txt), version_mcp)
     except Exception as e:                                   # noqa: BLE001
         return False, nombre, '%s: %s' % (type(e).__name__, e)
     finally:
