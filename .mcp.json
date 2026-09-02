@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "kumiko": {
-      "command": "python3",
+      "command": "sh",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/motor/servidor_mcp.py",
+        "${CLAUDE_PLUGIN_ROOT}/motor/lanzar_servidor.sh",
         "${CLAUDE_PROJECT_DIR}"
       ]
     }

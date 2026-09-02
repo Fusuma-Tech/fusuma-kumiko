@@ -50,7 +50,11 @@ def _clase_servidor():
             return FastMCP, False
         except ImportError as e:
             raise SystemExit(
-                'Falta el paquete mcp. Instálalo con:  python3 -m pip install mcp\n(%s)' % e) from e
+                'Falta el paquete mcp. Instálalo con:  python3 -m pip install mcp\n'
+                + ('Este Python es %d.%d y mcp exige 3.10 o superior; en macOS: '
+                   'brew install python@3.12 && python3.12 -m pip install mcp\n' % sys.version_info[:2]
+                   if sys.version_info < (3, 10) else '')
+                + '(%s)' % e) from e
 
 
 def servidor(ruta: str | None = None) -> None:

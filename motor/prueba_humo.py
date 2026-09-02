@@ -133,16 +133,38 @@ def consulta_que_casa(cerebro: pathlib.Path) -> str:
     return next(iter(c.reglas.values()))['titulo'] if c.reglas else 'reglas'
 
 
+PISTA_MCP = ('hace falta Python >= 3.10 con el paquete mcp · '
+             'macOS: brew install python@3.12 && python3.12 -m pip install mcp')
+
+
+def busca_python() -> tuple[str, str] | None:
+    """El intérprete con que Claude Code lanzará el servidor: el mismo criterio que
+    motor/lanzar_servidor.sh (>= 3.10 y con `mcp`), empezando por el actual."""
+    forzado = os.environ.get('KUMIKO_PYTHON')
+    candidatos = [forzado] if forzado else [
+        sys.executable, 'python3.13', 'python3.12', 'python3.11', 'python3.10',
+        '/opt/homebrew/bin/python3', '/usr/local/bin/python3', 'python3']
+    for py in candidatos:
+        ruta = shutil.which(py) if py else None
+        if not ruta:
+            continue
+        r = subprocess.run([ruta, '-c', 'import sys, mcp, importlib.metadata as m; '
+                            'assert sys.version_info >= (3, 10); print(m.version("mcp"))'],
+                           capture_output=True, text=True)
+        if r.returncode == 0:
+            return ruta, r.stdout.strip()
+    return None
+
+
 def prueba_stdio(cerebro: pathlib.Path) -> tuple[bool, str, str]:
     """Habla MCP de verdad con el servidor: es por donde se rompen los MCP."""
     nombre = 'el servidor habla MCP por stdio'
-    try:
-        import importlib.metadata as md
-        version_mcp = md.version('mcp')
-    except Exception:  # noqa: BLE001
-        return False, nombre, 'falta el paquete mcp (python3 -m pip install mcp)'
+    encontrado = busca_python()
+    if not encontrado:
+        return False, nombre, PISTA_MCP
+    python, version_mcp = encontrado
     env = dict(os.environ, KUMIKO_CEREBRO=str(cerebro))
-    p = subprocess.Popen([sys.executable, str(MOTOR / 'servidor_mcp.py')],
+    p = subprocess.Popen([python, str(MOTOR / 'servidor_mcp.py')],
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          env=env, text=True, bufsize=1)
     try:
@@ -176,7 +198,8 @@ def prueba_stdio(cerebro: pathlib.Path) -> tuple[bool, str, str]:
             return False, nombre, 'tools/call no devolvió contenido'
         if not re.search(r'`[A-Z]{2,3}(?:-[A-Z]{2,4})?-\d+`', txt):
             return False, nombre, 'la respuesta no trae ninguna regla: %s' % txt.split(chr(10))[0][:70]
-        return True, nombre, '%d herramientas · %d caracteres con reglas dentro · mcp %s' % (len(tools), len(txt), version_mcp)
+        return True, nombre, '%d herramientas · %d caracteres con reglas dentro · mcp %s · %s' % (
+            len(tools), len(txt), version_mcp, python if python != sys.executable else 'este python')
     except Exception as e:                                   # noqa: BLE001
         return False, nombre, '%s: %s' % (type(e).__name__, e)
     finally:

@@ -68,7 +68,21 @@ En GitLab autoalojado el `.git` final es obligatorio. Desde una copia local, la 
 Para trastear sin instalar, cargándolo solo en esa sesión: `claude --plugin-dir /ruta/a/kumiko`.
 
 Comprueba que ha entrado con `/skills` (salen cuatro) y `/mcp` (el servidor `kumiko`, con seis
-herramientas). El servidor necesita `python3 -m pip install mcp` (funciona con mcp 1.x y 2.x).
+herramientas).
+
+**Requisitos.** Los scripts del motor valen con Python 3.9 en adelante y no necesitan nada más.
+El servidor MCP, además, necesita el paquete `mcp`, que exige **Python >= 3.10** (vale 1.x o 2.x):
+
+```sh
+python3 --version                                    # si es 3.10 o más:
+python3 -m pip install mcp
+# En macOS el python3 del sistema es 3.9; instala uno con Homebrew:
+brew install python@3.12 && python3.12 -m pip install mcp
+```
+
+No hace falta tocar nada más: el plugin arranca el servidor con `motor/lanzar_servidor.sh`, que
+busca el primer Python válido (`python3.13`… `python3.10`, Homebrew, `python3`). Si el tuyo vive
+en otro sitio, `export KUMIKO_PYTHON=/ruta/a/python3`.
 
 ## 3. Móntalo en tu proyecto
 
@@ -270,7 +284,7 @@ Ese `git diff --exit-code` evita el fallo más común: alguien edita una regla, 
 
 | Síntoma | Qué pasa |
 |---|---|
-| `/mcp` muestra kumiko con **0 herramientas** | Falta `python3 -m pip install mcp`, o el servidor no encuentra el cerebro. `claude --debug=mcp` y mira el log. |
+| `/mcp` muestra kumiko con **0 herramientas** o «failed» | No hay un Python >= 3.10 con `mcp` (mira los requisitos del paso 2), o el servidor no encuentra el cerebro. `sh /ruta/a/kumiko/motor/lanzar_servidor.sh --probar "algo"` te dice cuál de las dos, y `claude --debug=mcp` enseña el log. |
 | **«No encuentro ningún cerebro kumiko»** | No hay `kumiko.json` subiendo desde el proyecto. Deja un `.kumiko-cerebro` con la ruta. |
 | `reglas_para_tarea` **no encuentra nada** | El `aplica_si` de tus ficheros no habla el idioma de la consulta. Reescríbelo con los términos que usaría la gente — no toques el motor. |
 | Devuelve **reglas que no tocaban** | Lo mismo por el otro lado: el `aplica_si` es demasiado genérico. La respuesta te dice en qué palabras casó. |
@@ -280,7 +294,7 @@ Ese `git diff --exit-code` evita el fallo más común: alguien edita una regla, 
 ## 9. Qué hay aquí
 
 ```
-motor/          los cuatro scripts y el núcleo compartido
+motor/          los scripts, el núcleo compartido y el lanzador del servidor
 skills/         las cuatro skills del plugin
 visor/          el panel en Astro, sirve cualquier cerebro
 plantillas/     los ficheros de arranque, comentados, y el hook de pre-commit
@@ -296,7 +310,7 @@ python3 motor/servidor_mcp.py --medir          # coste frente a cargarlo todo
 python3 motor/prueba_humo.py         # el ciclo entero
 ```
 
-Python puro, sin dependencias salvo `mcp` para el servidor.
+Python puro (3.9 o más), sin dependencias salvo `mcp` para el servidor, que pide Python >= 3.10.
 
 ## Lo que no hace
 
