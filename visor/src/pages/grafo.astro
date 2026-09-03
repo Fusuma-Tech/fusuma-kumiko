@@ -1,15 +1,16 @@
 ---
 import Base from '../layouts/Base.astro';
-import { categorias, grafo, hayDecisiones } from '../lib/cerebro.mjs';
+import { categorias, grafo, hayDecisiones, telemetria } from '../lib/cerebro.mjs';
 const g = grafo();
+// Lo que el harness ha hecho con cada regla: veces devuelta y veces que paró un hallazgo.
+const uso = {};
+for (const x of telemetria.reglas_mas_devueltas || []) uso[x.regla] = Object.assign(uso[x.regla] || {}, { devuelta: x.veces });
+for (const x of telemetria.reglas_con_hallazgos || []) uso[x.regla] = Object.assign(uso[x.regla] || {}, { paro: x.veces });
+const hayUso = Object.keys(uso).length > 0;
 const paleta = Object.fromEntries(categorias.map((c) => [c.id, { claro: c.claro, oscuro: c.oscuro }]));
 ---
 <Base title="Grafo" subtitle="El cerebro como red, agrupado por categoría" active="grafo">
-  <p class="lead">
-    Cada <b>zona</b> es una categoría; cada punto, un fichero, una regla o un defecto. Una línea
-    de un defecto a una regla significa que esa regla nació de ese caso. Filtra por categoría,
-    arrastra para reorganizar y haz clic en un nodo para aislarlo.
-  </p>
+  <p class="lead">Filtra por categoría, arrastra para reorganizar, clic en un nodo para aislarlo.</p>
 
   <div class="filters">
     <div class="fgroup">
@@ -26,6 +27,8 @@ const paleta = Object.fromEntries(categorias.map((c) => [c.id, { claro: c.claro,
       <span class="lbl">Vista</span>
       <div class="fchips">
         <button class="fchip" id="g-solo" aria-pressed="false">Solo con defecto detrás</button>
+        {hayUso && <button class="fchip" id="g-uso" aria-pressed="false">Solo las que el harness devolvió</button>}
+        {hayUso && <button class="fchip" id="g-paro" aria-pressed="false">Solo las que pararon un error</button>}
         <button class="fchip" id="g-reset">Reordenar</button>
       </div>
     </div>
@@ -37,6 +40,8 @@ const paleta = Object.fromEntries(categorias.map((c) => [c.id, { claro: c.claro,
     <span><svg class="sh" width="13" height="13"><path d="M6.5 1 12 6.5 6.5 12 1 6.5Z" fill="currentColor" opacity=".5"/></svg>Defecto</span>
     {hayDecisiones && <span><svg class="sh" width="13" height="13"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".5"/></svg>Decisión</span>}
     {hayDecisiones && <span><svg class="sh" width="15" height="15"><circle cx="7.5" cy="7.5" r="6" fill="none" stroke="currentColor" stroke-width="2" opacity=".7"/></svg>Tarea</span>}
+    {hayUso && <span><svg class="sh" width="15" height="15"><circle cx="7.5" cy="7.5" r="4" fill="currentColor" opacity=".5"/><circle cx="7.5" cy="7.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".35"/></svg>Halo: veces devuelta</span>}
+    {hayUso && <span><svg class="sh" width="15" height="15"><circle cx="7.5" cy="7.5" r="4" fill="currentColor" opacity=".5"/><circle cx="12" cy="3.5" r="2.6" fill="#e34948"/></svg>Punto rojo: paró un error</span>}
     <span style="margin-left:6px">El color es la categoría; el nombre va siempre al lado, en texto.</span>
   </div>
 
@@ -50,7 +55,7 @@ const paleta = Object.fromEntries(categorias.map((c) => [c.id, { claro: c.claro,
     </div>
   </div>
 
-  <script define:vars={{ g, categorias, paleta }}>
+  <script define:vars={{ g, categorias, paleta, uso }}>
     (function () {
       var W = 1100, H = 680, CX = W / 2, CY = H / 2;
       var oscuro = matchMedia('(prefers-color-scheme: dark)').matches;
@@ -142,15 +147,39 @@ const paleta = Object.fromEntries(categorias.map((c) => [c.id, { claro: c.claro,
         tx.setAttribute('paint-order', 'stroke');
         tx.setAttribute('stroke', PAPEL); tx.setAttribute('stroke-width', 3.5);
         tx.style.pointerEvents = 'none';
-        el.appendChild(sh); el.appendChild(tx); gN.appendChild(el);
+        // Lo que registró el harness: un halo tanto mayor cuantas más veces se devolvió la regla,
+        // y un punto rojo si alguna vez paró un hallazgo. Las reglas sin nada de esto son las que
+        // nadie ha tocado todavía.
+        var u = uso[n.id];
+        if (u && u.devuelta) {
+          var halo = document.createElementNS(NS, 'circle');
+          halo.setAttribute('r', n.r + 3 + Math.min(10, Math.sqrt(u.devuelta) * 2.2));
+          halo.setAttribute('fill', c); halo.setAttribute('opacity', .16);
+          el.appendChild(halo);
+          n.detalle = (n.detalle || '') + ' · devuelta ' + u.devuelta + (u.devuelta === 1 ? ' vez' : ' veces');
+        }
+        el.appendChild(sh);
+        if (u && u.paro) {
+          var pto = document.createElementNS(NS, 'circle');
+          pto.setAttribute('cx', n.r * .8); pto.setAttribute('cy', -n.r * .8); pto.setAttribute('r', 3.2);
+          pto.setAttribute('fill', '#e34948'); pto.setAttribute('stroke', PAPEL); pto.setAttribute('stroke-width', 1.2);
+          el.appendChild(pto);
+          n.detalle = (n.detalle || '') + ' · paró ' + u.paro + (u.paro === 1 ? ' hallazgo' : ' hallazgos');
+        }
+        el.appendChild(tx); gN.appendChild(el);
         n.el = el; n.tx = tx;
       });
 
-      var fCat = new Set(), soloDef = false, sel = null;
+      var fCat = new Set(), soloDef = false, soloUso = false, soloParo = false, sel = null;
       function visible(n) {
         if (fCat.size && n.categoria && !fCat.has(n.categoria)) return false;
         if (fCat.size && !n.categoria && n.tipo !== 'tarea') return false;
         if (soloDef && !conDefecto.has(n.id)) return false;
+        // con un filtro de uso, se ven las reglas que cumplen y los ficheros que las contienen
+        if (soloUso && n.tipo === 'regla' && !(uso[n.id] && uso[n.id].devuelta)) return false;
+        if (soloParo && n.tipo === 'regla' && !(uso[n.id] && uso[n.id].paro)) return false;
+        if ((soloUso || soloParo) && n.tipo !== 'regla' && n.tipo !== 'fichero') return false;
+        if ((soloUso || soloParo) && n.tipo === 'fichero' && !nodos.some(function (m) { return m.tipo === 'regla' && vecinos[n.id].has(m.id) && visible(m); })) return false;
         return true;
       }
 
@@ -273,6 +302,15 @@ const paleta = Object.fromEntries(categorias.map((c) => [c.id, { claro: c.claro,
       });
       document.getElementById('g-solo').addEventListener('click', function () {
         soloDef = !soloDef; this.setAttribute('aria-pressed', String(soloDef));
+        sel = null; muestra(null); empuja();
+      });
+      var bUso = document.getElementById('g-uso'), bParo = document.getElementById('g-paro');
+      if (bUso) bUso.addEventListener('click', function () {
+        soloUso = !soloUso; this.setAttribute('aria-pressed', String(soloUso));
+        sel = null; muestra(null); empuja();
+      });
+      if (bParo) bParo.addEventListener('click', function () {
+        soloParo = !soloParo; this.setAttribute('aria-pressed', String(soloParo));
         sel = null; muestra(null); empuja();
       });
       document.getElementById('g-reset').addEventListener('click', function () {
