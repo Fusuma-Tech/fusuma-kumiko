@@ -8,13 +8,6 @@ const ORIGEN = { 'mcp': 'el agente preguntó (MCP)', 'hook:prompt': 'inyectadas 
 const nombreRegla = (id) => reglas.find((r) => r.id === id)?.titulo || '';
 ---
 <Base title="Harness" subtitle="Lo que el plugin hace solo, y cómo se sabe si funciona" active="harness">
-  <p class="lead">
-    Un cerebro bien escrito no sirve de nada si el agente no lo consulta. El harness quita esa
-    decisión de en medio: son cinco hooks de Claude Code que enrutan, vigilan y paran sin que
-    nadie se acuerde. Y como todo lo que hace deja rastro, se puede medir si el enrutado
-    acierta y qué reglas están parando errores de verdad.
-  </p>
-
   <div class="kpis">
     <div class="kpi"><div class="n">{activas}<span style="font-size:16px;color:var(--faint)">/{harness.piezas.length}</span></div><div class="k">Hooks activos en este cerebro</div></div>
     <div class="kpi"><div class="n">{evaluacion.casos ? pct(evaluacion.recall) : '—'}</div><div class="k">Recall del enrutado · {evaluacion.casos} consultas evaluadas</div>
@@ -38,26 +31,14 @@ const nombreRegla = (id) => reglas.find((r) => r.id === id)?.titulo || '';
       ))}
     </tbody>
   </table>
-  <p class="lead" style="margin-top:12px">
-    Se declaran en <code>hooks/hooks.json</code> del plugin y los ejecuta <code>motor/harness.py</code>.
-    Cada pieza se apaga por separado en <code>kumiko.json</code> → <code>harness</code>. Probar uno a mano:
-    <code>echo '{"{"}"prompt":"guardo una reserva"{"}"}' | python3 motor/harness.py prompt</code>.
-  </p>
+  <p class="lead" style="margin-top:10px;font-size:12.5px;color:var(--faint)"><code>hooks/hooks.json</code> · <code>motor/harness.py</code> · se apagan en <code>kumiko.json → harness</code></p>
 
   <div class="sec-title">¿Acierta el enrutado? · <code>{harness.evaluaciones}</code></div>
   {evaluacion.casos === 0 ? (
-    <p class="lead">
-      Todavía no hay conjunto de evaluación. Es un fichero con una consulta por línea y los ids que
-      deberían salir: <code>{"{"}"consulta": "…", "esperadas": ["ID-1"]{"}"}</code>. Las mejores consultas
-      son las que la telemetría de abajo registró sin resultado y alguien resolvió a mano.
-    </p>
+    <p class="lead">Sin conjunto de evaluación todavía: <code>{"{"}"consulta": "…", "esperadas": ["ID-1"]{"}"}</code>, una por línea.</p>
   ) : (
     <>
-      <p class="lead">
-        <code>motor/evaluar.py</code> pasa cada consulta por el mismo enrutado que usa el servidor y compara
-        con lo esperado. Falla en CI si el recall baja de {pct(evaluacion.umbral_recall)}. Cuando una
-        consulta falla, se arregla la frase del <code>aplica_si</code>, no el algoritmo.
-      </p>
+      <p class="lead" style="font-size:12.5px;color:var(--faint)"><code>motor/evaluar.py</code> · umbral de recall {pct(evaluacion.umbral_recall)}</p>
       <table class="dtable">
         <thead><tr><th style="width:36px"></th><th>Consulta</th><th style="width:220px">Esperadas</th><th style="width:260px">Salieron</th></tr></thead>
         <tbody>
@@ -76,10 +57,7 @@ const nombreRegla = (id) => reglas.find((r) => r.id === id)?.titulo || '';
 
   <div class="sec-title">Qué se consulta de verdad · <code>{harness.telemetria}</code></div>
   {telemetria.eventos === 0 ? (
-    <p class="lead">
-      Sin actividad todavía. En cuanto el servidor MCP o los hooks trabajen, aquí aparecerá qué se
-      pregunta, qué se devuelve y qué reglas paran errores. Este fichero es local y no va a git.
-    </p>
+    <p class="lead">Sin actividad todavía.</p>
   ) : (
     <>
       <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(285px,1fr))">
@@ -105,20 +83,14 @@ const nombreRegla = (id) => reglas.find((r) => r.id === id)?.titulo || '';
               : telemetria.reglas_con_hallazgos.map((x) => (
               <tr><td class="id">{x.regla}</td><td style="color:var(--ink-2)">{nombreRegla(x.regla)}</td><td class="ref" style="text-align:right">{x.veces}</td></tr>))}</tbody>
           </table>
-          <div class="d" style="margin-top:8px">Cada una es un error que no llegó al commit. Es la métrica que justifica el tercer escalón.</div>
         </div>
       </div>
 
       <div class="sec-title">Consultas sin resultado · el trabajo pendiente</div>
       {telemetria.ultimas_sin_resultado.length === 0 ? (
-        <p class="lead">Ninguna. Todo lo que se ha preguntado ha encontrado tema.</p>
+        <p class="lead">Ninguna.</p>
       ) : (
         <>
-          <p class="lead">
-            Cada una es un <code>aplica_si</code> que no habla el idioma de quien pregunta, o un tema que el
-            cerebro aún no tiene. Resuélvela a mano y añádela a <code>{harness.evaluaciones}</code> con el id
-            que tendría que haber salido: así deja de repetirse.
-          </p>
           <table class="dtable">
             <thead><tr><th style="width:170px">Cuándo</th><th>Consulta</th><th style="width:200px">Origen</th></tr></thead>
             <tbody>{telemetria.ultimas_sin_resultado.map((x) => (
