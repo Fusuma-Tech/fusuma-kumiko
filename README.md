@@ -2,10 +2,7 @@
 
 Motor de cerebro de contexto para equipos que trabajan con agentes.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/resumen-dark.png">
-  <img src="docs/capturas/resumen-light.png" alt="El visor de kumiko: resumen del cerebro, con la salud de las reglas y las reincidentes">
-</picture>
+<img src="docs/capturas/resumen.png" alt="El visor de kumiko: resumen del cerebro, con la salud de las reglas y las reincidentes">
 
 > *Kumiko* es el entramado de listones finos que sostiene un panel japonés. No es el papel:
 > es la estructura que lo mantiene en su sitio. Esto tampoco es tu contenido — es lo que hace
@@ -52,12 +49,7 @@ veces como quieras: lo que ya está hecho, lo salta.
 
 Necesitas Claude Code y, para el visor, node. Sin node todo funciona igual, salvo el panel.
 
-Mientras Claude te entrevista, el visor espera así, y en cuanto aparece la primera regla se rellena solo:
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/espera-dark.png">
-  <img src="docs/capturas/espera-light.png" alt="El visor en un proyecto que todavía no tiene cerebro">
-</picture>
+Mientras Claude te entrevista, el visor espera en pantalla, y en cuanto aparece la primera regla se rellena solo.
 
 Para verlo funcionar antes de tocar tu proyecto, el repositorio trae un cerebro inventado (un
 servicio de reserva de salas, 16 reglas y 2 defectos): `sh kumiko/empezar.sh kumiko/ejemplo`.
@@ -262,26 +254,13 @@ y oscuro, tu logo si lo quieres, y los colores salen de tus categorías. Detalle
 [`visor/README.md`](visor/README.md).
 
 
-**Reglas**, por categoría y momento, con buscador; el ⚙ marca las que tienen comprobación automática:
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/reglas-dark.png">
-  <img src="docs/capturas/reglas-light.png" alt="La página de reglas del visor">
-</picture>
+**Reglas**, por categoría y momento, con buscador; el ⚙ marca las que tienen comprobación automática.
 
 **Grafo**: cada zona es una categoría; los rombos son defectos y la línea discontinua une cada uno con la regla que nació de él. Lo que no tiene ninguna línea, nadie lo ha pagado todavía:
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/grafo-dark.png">
-  <img src="docs/capturas/grafo-light.png" alt="El grafo del cerebro, agrupado por categoría">
-</picture>
+<img src="docs/capturas/grafo.png" alt="El grafo del cerebro, agrupado por categoría">
 
-**Defectos**: lo que ya costó caro, filtrable, y qué regla lo previene ahora:
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/defectos-dark.png">
-  <img src="docs/capturas/defectos-light.png" alt="La página de defectos del visor">
-</picture>
+**Defectos**: lo que ya costó caro, filtrable, y qué regla lo previene ahora.
 
 ## 6. El servidor MCP
 
@@ -318,10 +297,7 @@ que la telemetría registra sin resultado son los casos que hay que añadir a la
 cuando una falla, se arregla la frase del `aplica_si`, no el algoritmo. El visor lo enseña todo
 en la página **Harness**.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/harness-dark.png">
-  <img src="docs/capturas/harness-light.png" alt="La página Harness del visor: hooks, evaluación del enrutado y telemetría">
-</picture>
+<img src="docs/capturas/harness.png" alt="La página Harness del visor: hooks, evaluación del enrutado y telemetría">
 
 ```bash
 python3 motor/evaluar.py                 # ¿acierta el enrutado? recall y precisión por consulta

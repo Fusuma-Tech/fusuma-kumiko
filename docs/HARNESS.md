@@ -9,10 +9,7 @@ evaluación que dicen si de verdad funcionan.
 La idea, en una frase: *no confíes en que el modelo se acuerde; construye lo que le obliga, lo
 mide y lo corrige.*
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="capturas/harness-dark.png">
-  <img src="capturas/harness-light.png" alt="La página Harness del visor: hooks activos, evaluación del enrutado y telemetría">
-</picture>
+<img src="capturas/harness.png" alt="La página Harness del visor: hooks activos, evaluación del enrutado y telemetría">
 
 ## Los cinco hooks
 
