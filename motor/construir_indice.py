@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import evaluar
 import telemetria
-from nucleo import Cerebro, Config, busca_raiz  # noqa: E402
+from nucleo import Cerebro, Config, localiza  # noqa: E402
 
 
 def datos(c: Cerebro) -> dict:
@@ -150,7 +150,7 @@ def rel(cfg: Config, ruta: str) -> str:
 
 
 def main() -> None:
-    raiz = busca_raiz(pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else None)
+    raiz = localiza(pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else None)
     cfg = Config(raiz)
     c = Cerebro(cfg)
 

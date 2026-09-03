@@ -21,7 +21,7 @@ import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from nucleo import (CAMPOS_FRONTMATTER, Cerebro, Config, busca_raiz,  # noqa: E402
+from nucleo import (CAMPOS_FRONTMATTER, Cerebro, Config, localiza,  # noqa: E402
                     lee_frontmatter)
 
 RE_CITA_RUTA = re.compile(r'`((?:\.\./)*[\w./-]+\.md)`')
@@ -30,7 +30,7 @@ RE_CITA_DEF = re.compile(r'§(\d+)')
 
 
 def main() -> int:
-    raiz = busca_raiz(pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else None)
+    raiz = localiza(pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else None)
     cfg = Config(raiz)
     c = Cerebro(cfg)
     fallos: list[str] = []
