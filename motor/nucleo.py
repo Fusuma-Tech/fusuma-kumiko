@@ -265,7 +265,8 @@ class Cerebro:
                 resumen=fm.get('resumen', ''), aplica_si=fm.get('aplica_si', ''),
                 senal=fm.get('senal_de_incumplimiento', ''),
                 evidencia=fm.get('evidencia', ''), ruta=rel,
-                comprobaciones=[c for c in fm.get('comprobaciones', []) if isinstance(c, dict)])
+                comprobaciones=[c for c in fm.get('comprobaciones', []) if isinstance(c, dict)],
+                fuentes=[f for f in fm.get('fuentes', []) if isinstance(f, dict)])
             self.por_fichero[fid] = []
             self._carga_reglas(cuerpo, rel, fid, fm)
         self._carga_defectos()

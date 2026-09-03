@@ -104,6 +104,19 @@ def main() -> int:
             print('  %-12s %d veces · %s' % (x['regla'], x['veces'], x['titulo'][:60]))
         print('  → son las primeras candidatas a un `comprobaciones:` en su frontmatter\n')
 
+    # aviso, no fallo: un nodo cuyo código fuente ha cambiado no está roto, está
+    # sin verificar. Coherente y falso son cosas distintas, y esto vigila la segunda.
+    try:
+        import fuentes
+        ds = fuentes.desfases(c, pathlib.Path.cwd())
+    except Exception:
+        ds = []
+    if ds:
+        print('%d nodo(s) describen código que ha cambiado desde que se verificaron:' % len(ds))
+        for d in ds:
+            print('  %-12s %s' % (d['nodo'], d['ruta']))
+        print('  → reléelos y después `python3 motor/fuentes.py --fijar <id>`\n')
+
     if fallos:
         print('%d problemas:\n' % len(fallos))
         for f in sorted(set(fallos)):

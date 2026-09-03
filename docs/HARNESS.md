@@ -21,7 +21,7 @@ stdout. Vale con Python 3.9 y no necesita `mcp`.
 |---|---|---|---|
 | `SessionStart` | `sesion` | Presenta el cerebro en dos líneas: nombre, reglas, comprobaciones, qué hace el harness. | — |
 | `UserPromptSubmit` | `prompt` | Enruta lo que el usuario pide con el mismo `busca()` del servidor y añade al contexto las reglas que casan, con id y resumen, y los defectos que ya costaron caro. Ignora comandos (`/…`) y prompts de menos de cuatro palabras. | `harness.inyectar_reglas` |
-| `PostToolUse` (`Edit\|Write\|MultiEdit\|NotebookEdit`) | `tras-editar` | Pasa las `comprobaciones` del cerebro por el fichero recién escrito. Con hallazgos, se los devuelve al agente en el acto (`decision: block` con el motivo), no en el pre-commit. | `harness.vigilar_al_editar` |
+| `PostToolUse` (`Edit\|Write\|MultiEdit\|NotebookEdit`) | `tras-editar` | Tres cosas: si lo editado es markdown **del cerebro**, regenera el índice y no dice nada más; si no, pasa las `comprobaciones` por el fichero, y además avisa si el fichero es `fuentes` de algún nodo cuyo hash ya no cuadra. Con hallazgos, `decision: block` con el motivo, no en el pre-commit. | `harness.vigilar_al_editar` |
 | `PreToolUse` (`Bash`) | `antes-de-bash` | Si el comando es un `git commit`, revisa lo preparado. Con hallazgos que `bloquea: sí`, deniega el comando (`permissionDecision: deny`) y explica por qué. | `harness.bloquear_commit` |
 | `Stop` | `al-parar` | Antes de que Claude dé la tarea por hecha, revisa todo lo que no está en `HEAD` (diff más ficheros nuevos). Con hallazgos que bloquean, no le deja parar sin corregirlos o explicarlos. Respeta `stop_hook_active` para no entrar en bucle. | `harness.revisar_al_parar` |
 

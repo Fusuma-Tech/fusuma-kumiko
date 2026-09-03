@@ -25,10 +25,12 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from nucleo import Cerebro, Config, localiza  # noqa: E402
+import fuentes  # noqa: E402
 import telemetria  # noqa: E402
 import vigilar  # noqa: E402
 
@@ -122,6 +124,37 @@ def prompt(e: dict) -> int:
     return responde(contexto('UserPromptSubmit', salida[:tope + 400]))
 
 
+def _relativa(proyecto: pathlib.Path, ruta: str) -> str:
+    """La ruta tal y como la escribe un `fuentes:`: relativa al proyecto, con /."""
+    p = pathlib.Path(ruta)
+    try:
+        return str(p.resolve().relative_to(proyecto)).replace('\\', '/')
+    except (ValueError, OSError):
+        return str(p).replace('\\', '/')
+
+
+def _regenera_indice(c, ruta: str) -> bool:
+    """Si lo editado es markdown DEL CEREBRO, regenera el índice.
+
+    Es el fallo que la documentación llama el más común: alguien edita una regla,
+    no regenera, y el índice empieza a mentir. El hook lo quita de en medio.
+    """
+    if not ruta.endswith('.md'):
+        return False
+    try:
+        dentro = pathlib.Path(ruta).resolve().is_relative_to(c.cfg.raiz.resolve())
+    except (ValueError, OSError):
+        return False
+    if not dentro:
+        return False
+    try:
+        subprocess.run([sys.executable, str(pathlib.Path(__file__).with_name('construir_indice.py')),
+                        str(c.cfg.raiz)], capture_output=True, timeout=25, check=False)
+        return True
+    except (OSError, subprocess.SubprocessError):
+        return False  # regenerar es una comodidad; nunca debe romper la sesión
+
+
 def tras_editar(e: dict) -> int:
     proyecto = proyecto_de(e)
     c = cerebro_de(proyecto)
@@ -131,14 +164,33 @@ def tras_editar(e: dict) -> int:
     ruta = ti.get('file_path') or ti.get('path') or ti.get('notebook_path')
     if not ruta:
         return 0
+
+    if _regenera_indice(c, ruta):
+        return responde(None)  # editaste el cerebro: nada que vigilar en él
+
+    partes = []
     hs = vigilar.busca_hallazgos(c, vigilar.lineas_de_ficheros(proyecto, [ruta]))
-    if not hs:
+    if hs:
+        telemetria.registra(c.cfg, 'hook:editar', ruta, [h['regla'] for h in hs],
+                            bloqueo=any(h['bloquea'] for h in hs))
+        partes.append(
+            'kumiko · el fichero que acabas de escribir tiene %d sitio(s) que casan con una regla '
+            'del cerebro. Cada uno es un lugar donde tienes que poder explicar por qué está bien; '
+            'si no puedes, corrígelo antes de seguir:\n%s' % (len(hs), formatea_hallazgos(hs)))
+
+    try:
+        ds = fuentes.desfases(c, proyecto, solo_rutas={_relativa(proyecto, ruta)})
+    except Exception:
+        ds = []  # la detección de caducidad nunca debe romper una edición
+    if ds:
+        telemetria.registra(c.cfg, 'hook:fuentes', ruta, [d['nodo'] for d in ds])
+        partes.append(
+            'kumiko · este fichero lo describe %d nodo(s) del cerebro, y lo que dicen puede haber '
+            'dejado de ser cierto con tu cambio:\n%s' % (len(ds), fuentes.formatea(ds)))
+
+    if not partes:
         return 0
-    telemetria.registra(c.cfg, 'hook:editar', ruta, [h['regla'] for h in hs], bloqueo=any(h['bloquea'] for h in hs))
-    return responde({'decision': 'block', 'reason':
-        'kumiko · el fichero que acabas de escribir tiene %d sitio(s) que casan con una regla del cerebro. '
-        'Cada uno es un lugar donde tienes que poder explicar por qué está bien; si no puedes, corrígelo '
-        'antes de seguir:\n%s' % (len(hs), formatea_hallazgos(hs))})
+    return responde({'decision': 'block', 'reason': '\n\n'.join(partes)})
 
 
 def antes_de_bash(e: dict) -> int:

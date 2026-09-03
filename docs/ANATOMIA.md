@@ -81,6 +81,32 @@ justificación en ese proyecto.
 Los patrones se prueban antes de darlos por buenos, sobre el código real:
 `python3 motor/vigilar.py --todo`.
 
+## `fuentes`: cuando el nodo describe código que se mueve
+
+`comprobaciones` vigila que el código cumpla la regla. `fuentes` vigila lo contrario: que la
+**prosa** siga siendo verdad. Es lo que necesita un fichero `tipo: contexto`, que explica un
+proceso y envejece el día que alguien reordena las tareas de un workflow:
+
+```yaml
+fuentes:
+  - ruta: apps/workflows-api/src/workflows/conta/new-expense/new-expense.workflow.ts
+    hash: a3f9c1d2e4b5
+```
+
+El hash es sha256 truncado a 12, y se guarda **en el markdown, no en el índice generado**. Si
+viviera en el índice, regenerarlo lo actualizaría solo y el desfase no se detectaría nunca. Aquí
+solo cambia cuando una persona decide que ha vuelto a leer el nodo.
+
+| Cuándo | Qué pasa |
+|---|---|
+| Editas un fichero que un nodo declara como fuente | El hook `PostToolUse` te lo dice en el acto |
+| `python3 motor/comprobar.py` | Lo lista como aviso, no como fallo |
+| `python3 motor/fuentes.py --revisar` | El informe completo |
+| Has releído el nodo y sigue siendo cierto | `python3 motor/fuentes.py --fijar <id>` |
+
+**Un desfase no es un error.** Es un nodo que hay que releer antes de fiarse. Y `--fijar` se
+ejecuta *después* de releer, nunca antes: fijar sin mirar convierte esto en un sello de goma.
+
 ## Por qué los ids
 
 Antes de tenerlos, el texto citaba «§32» y el encabezado era `## 32.`. Un `grep "§32"`
