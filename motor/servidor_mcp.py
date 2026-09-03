@@ -22,6 +22,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from nucleo import Cerebro, Config, localiza  # noqa: E402
+import telemetria  # noqa: E402
 
 TAREAS_DEMO = [
     'guardo un registro nuevo y tengo que evitar duplicados',
@@ -149,6 +150,8 @@ def servidor(ruta: str | None = None) -> None:
     def reglas_para_tarea(tarea: str, momento: str | None = None) -> str:
         c = cerebro()
         cfg = c.cfg
+        ids = [rid for _, _, reglas in c.busca(tarea, momento) for rid, _ in reglas]
+        telemetria.registra(cfg, 'mcp', tarea, ids, momento=momento)
         return c.responde(tarea, momento)
 
     @app.tool(description='Texto completo de una regla por su id.')

@@ -1,0 +1,8 @@
+{"consulta": "guardo una reserva y quiero evitar solapes", "esperadas": ["DAT-PER-1", "DAT-PER-2"]}
+{"consulta": "voy a insertar un registro y antes compruebo si existe", "esperadas": ["DAT-PER-1"]}
+{"consulta": "una llamada al servicio de correo puede fallar y no sé cómo devolver el error", "esperadas": ["ARQ-ERR-1", "ARQ-ERR-2"]}
+{"consulta": "el test depende de la hora actual y falla a medianoche", "esperadas": ["TST-3"]}
+{"consulta": "escribo tests para el caso de uso de crear reserva", "esperadas": ["TST-1", "TST-2"]}
+{"consulta": "qué reviso antes de abrir la MR", "esperadas": ["ENT-1"], "no_esperadas": ["DAT-PER-1"]}
+{"consulta": "necesito que la restricción de unicidad cubra sala y franja", "esperadas": ["DAT-PER-2"]}
+{"consulta": "refactorizo el nombre de un método sin cambiar nada más", "esperadas": [], "no_esperadas": ["DAT-PER-1", "DAT-PER-2"]}

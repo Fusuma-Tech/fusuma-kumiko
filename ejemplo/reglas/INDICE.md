@@ -69,7 +69,7 @@ Qué se testea y qué no.
 
 ### [`TST` · Tests](03-tests/01-tests.md)
 
-**Aplica si:** Escribes o tocas cualquier test.
+**Aplica si:** Escribes o tocas cualquier test: unitario, de caso de uso, de integración.
 
 **Se detecta por:** El mismo valor escrito en el given y en el assert; una clase de test sin ningún caso de fallo.
 
@@ -85,7 +85,7 @@ Lo que se comprueba antes de decir «hecho».
 
 ### [`ENT` · Antes de entregar](04-entrega/01-antes-de-entregar.md)
 
-**Aplica si:** Siempre, antes de decir que un cambio está terminado.
+**Aplica si:** Siempre, antes de decir que un cambio está terminado: al abrir la MR o pull request, al revisar el diff propio, al entregar.
 
 **Se detecta por:** Cualquiera de las preguntas contestada que sí sin justificación escrita.
 
@@ -103,6 +103,7 @@ Lo que se comprueba antes de decir «hecho».
 |---|---|
 | Reglas con comprobación automática | 3 de 16 |
 | Reglas reincidentes | 2 |
+| Enrutado evaluado (`evaluaciones/consultas.jsonl`) | recall 100% · precisión 59% · 8 de 8 consultas bien |
 
 **Reincidentes** — reglas que ya estaban escritas y volvieron a fallar. No les falta
 existir: les falta llegar a tiempo. Son las primeras candidatas a una comprobación automática.

@@ -50,6 +50,7 @@ CLAUDE.md                          router + reglas de método
 reglas/<NN-categoria>/<NN-tema>.md ficheros de reglas con frontmatter
 reglas/04-entrega/…                la lista de entrega (tipo: checklist)
 aprendizajes/defectos.md           los casos reales, con su índice
+evaluaciones/consultas.jsonl       consultas con respuesta conocida, para medir el enrutado
 ```
 
 Las plantillas comentadas están en `${CLAUDE_PLUGIN_ROOT}/plantillas/`. La anatomía exacta de
@@ -65,18 +66,29 @@ Reglas al escribir:
 - **Sin evidencia no entra.** Una regla sin `fichero:línea`, hash o comentario de revisión real
   detrás es una opinión. Dilo en voz alta cuando alguien te dicte una.
 - Arranca con **dos o tres ficheros de reglas**, no con doce vacíos.
+- **Un caso de evaluación por regla que escribas**: en `evaluaciones/consultas.jsonl`, la frase
+  con la que la persona describiría la tarea (sus palabras, no las tuyas) y el id que debe
+  salir. Es lo que permite tocar un `aplica_si` después sin romper nada. Plantilla en
+  `${CLAUDE_PLUGIN_ROOT}/plantillas/consultas.jsonl`.
 
 ## Cerrar
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/motor/construir_indice.py
 python3 ${CLAUDE_PLUGIN_ROOT}/motor/comprobar.py
+python3 ${CLAUDE_PLUGIN_ROOT}/motor/evaluar.py        # el enrutado, contra las consultas que acabáis de escribir
 ```
+
+Si `evaluar.py` falla en alguna consulta, arregla la frase del `aplica_si` del fichero que
+debía salir (añade las palabras que usa la persona), no la consulta.
 
 Después explica en dos frases, sin jerga:
 
 - Cómo se consulta: describes lo que vas a tocar y te devuelve solo las reglas de eso.
 - Cómo crece: cada vez que una revisión te pille algo, `/kumiko:anotar-defecto`.
+- Qué hace solo: desde ahora, en cada prompt le llegan al agente las reglas que casan, cada fichero
+  que escribe se vigila, y no hay commit ni «hecho» con hallazgos que bloquean. Se ve en la página
+  Harness del visor.
 
 Si la sesión la arrancó `empezar.sh`, el visor ya está abierto en el navegador y se ha ido
 rellenando solo mientras escribíais: dile que lo mire. Si no, ofrécele abrirlo — es lo que hace

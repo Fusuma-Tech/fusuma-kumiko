@@ -300,7 +300,38 @@ tema** y el texto de cada regla decide **cuál dentro del tema**. Por eso el ser
 decirte *por qué* eligió cada regla — y cuando se equivoca, **se arregla la frase del
 frontmatter, no el algoritmo**.
 
-## 7. Probarlo
+## 7. El harness: que la regla llegue sin que nadie se acuerde
+
+Todo lo anterior sigue dependiendo de que el agente **decida** consultar el cerebro. El
+harness quita esa decisión de en medio: cinco hooks de Claude Code que vienen con el plugin y
+trabajan solos. `UserPromptSubmit` enruta lo que pides y mete en el contexto las reglas que
+casan, con su id. `PostToolUse` pasa las comprobaciones por cada fichero que el agente escribe
+y le devuelve los hallazgos en el acto. `PreToolUse` no deja hacer `git commit` con hallazgos
+que bloquean. `Stop` revisa todo lo pendiente antes de dar la tarea por hecha. Y
+`SessionStart` presenta el cerebro al empezar.
+
+Como todo lo que hace deja rastro, se puede **medir**: la telemetría (`.kumiko/consultas.jsonl`)
+dice qué se consulta, qué se devuelve y qué reglas paran errores de verdad; y
+`motor/evaluar.py` pasa un conjunto de consultas con respuesta conocida
+(`evaluaciones/consultas.jsonl`) por el enrutado y falla en CI si el recall baja. Las consultas
+que la telemetría registra sin resultado son los casos que hay que añadir a la evaluación, y
+cuando una falla, se arregla la frase del `aplica_si`, no el algoritmo. El visor lo enseña todo
+en la página **Harness**.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/capturas/harness-dark.png">
+  <img src="docs/capturas/harness-light.png" alt="La página Harness del visor: hooks, evaluación del enrutado y telemetría">
+</picture>
+
+```bash
+python3 motor/evaluar.py                 # ¿acierta el enrutado? recall y precisión por consulta
+echo '{"prompt":"guardo una reserva"}' | python3 motor/harness.py prompt    # probar un hook a mano
+```
+
+Cada pieza se apaga por separado en `kumiko.json` → `harness`. Cómo funciona por dentro, el
+contrato de cada hook y lo que todavía no hace: [`docs/HARNESS.md`](docs/HARNESS.md).
+
+## 8. Probarlo
 
 ```bash
 sh motor/instalar.sh                         # una vez: el entorno con mcp
@@ -329,7 +360,7 @@ cerebro:
 Ese `git diff --exit-code` evita el fallo más común: alguien edita una regla, no regenera el
 índice, y el índice empieza a mentir.
 
-## 8. Cuando algo no funciona
+## 9. Cuando algo no funciona
 
 | Síntoma | Qué pasa |
 |---|---|
@@ -338,18 +369,21 @@ Ese `git diff --exit-code` evita el fallo más común: alguien edita una regla, 
 | `reglas_para_tarea` **no encuentra nada** | El `aplica_si` de tus ficheros no habla el idioma de la consulta. Reescríbelo con los términos que usaría la gente — no toques el motor. |
 | Devuelve **reglas que no tocaban** | Lo mismo por el otro lado: el `aplica_si` es demasiado genérico. La respuesta te dice en qué palabras casó. |
 | `comprobar.py` **falla tras editar** | Casi siempre es una cita a un id que no existe, o el índice de defectos desincronizado. El mensaje dice cuál. |
+| Los hooks **no hacen nada** | `claude --debug` enseña si se cargaron. Prueba uno a mano con `echo '{"prompt":"…"}' \| python3 motor/harness.py prompt` desde la raíz del proyecto: si contesta, el problema es de Claude Code; si no, del cerebro (¿hay `kumiko.json`?). |
+| `evaluar.py` **falla** tras editar un `aplica_si` | Es para lo que existe: mira qué consulta perdió recall y devuelve las palabras que quitaste, o añade las nuevas. |
 | El visor **no arranca** o no refleja un cambio | Mira `~/.kumiko/visor.log` (con `empezar.sh`) o la consola de `npm run dev`: si `construir_indice.py` falla por un markdown mal formado, ahí sale el motivo. |
 
-## 9. Qué hay aquí
+## 10. Qué hay aquí
 
 ```
 empezar.sh      la única orden que hace falta después de clonar
-motor/          los scripts, el núcleo compartido, el instalador y el lanzador del servidor
+motor/          los scripts, el núcleo, el harness (hooks), la evaluación, el instalador y el lanzador
+hooks/          los cinco hooks de Claude Code que vienen con el plugin
 skills/         las cuatro skills del plugin
 visor/          el panel en Astro, sirve cualquier cerebro
 plantillas/     los ficheros de arranque, comentados, y el hook de pre-commit
 ejemplo/        un cerebro completo y ficticio: reserva de salas
-docs/           ANATOMIA.md (cómo se escribe) · COMO-FUNCIONA.md (por qué así)
+docs/           ANATOMIA.md (cómo se escribe) · COMO-FUNCIONA.md (por qué así) · HARNESS.md (lo que hace solo)
 ```
 
 ```bash
@@ -357,6 +391,8 @@ python3 motor/construir_indice.py    # genera el índice y los datos desde el ma
 python3 motor/comprobar.py           # rutas, ids, frontmatter y duplicados
 python3 motor/servidor_mcp.py --probar "..."   # ver qué devolvería
 python3 motor/servidor_mcp.py --medir          # coste frente a cargarlo todo
+python3 motor/evaluar.py             # recall y precisión del enrutado
+python3 motor/harness.py <hook>      # lo que ejecutan los hooks del plugin
 python3 motor/prueba_humo.py         # el ciclo entero
 ```
 

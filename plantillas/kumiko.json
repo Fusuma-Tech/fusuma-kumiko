@@ -6,18 +6,47 @@
     "defectos": "aprendizajes/defectos.md",
     "extra": [],
     "indice": "reglas/INDICE.md",
-    "datos": ".kumiko/cerebro.json"
+    "datos": ".kumiko/cerebro.json",
+    "evaluaciones": "evaluaciones/consultas.jsonl",
+    "telemetria": ".kumiko/consultas.jsonl"
   },
   "prefijo_nucleo": "NUC",
   "rutas_externas": [],
   "solo_prosa": [],
   "categorias": [
-    { "id": "metodo", "nombre": "Método", "descripcion": "Cómo se decide y cómo se verifica." }
+    {
+      "id": "metodo",
+      "nombre": "Método",
+      "descripcion": "Cómo se decide y cómo se verifica."
+    }
   ],
   "momentos": [
-    { "id": "disenar",  "nombre": "Diseñar" },
-    { "id": "escribir", "nombre": "Escribir" },
-    { "id": "revisar",  "nombre": "Revisar" },
-    { "id": "entregar", "nombre": "Entregar" }
-  ]
+    {
+      "id": "disenar",
+      "nombre": "Diseñar"
+    },
+    {
+      "id": "escribir",
+      "nombre": "Escribir"
+    },
+    {
+      "id": "revisar",
+      "nombre": "Revisar"
+    },
+    {
+      "id": "entregar",
+      "nombre": "Entregar"
+    }
+  ],
+  "harness": {
+    "inyectar_reglas": true,
+    "vigilar_al_editar": true,
+    "bloquear_commit": true,
+    "revisar_al_parar": true,
+    "minimo_palabras": 4,
+    "maximo_caracteres": 1800
+  },
+  "evaluacion": {
+    "umbral_recall": 0.8
+  }
 }

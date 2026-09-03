@@ -14,6 +14,7 @@ Primero lo mecánico, que no depende de nadie:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/motor/vigilar.py            # las comprobaciones del cerebro sobre el diff preparado
+# (si el harness está activo, esto ya corrió al editar y volverá a correr al parar; aquí es la vuelta explícita)
 ```
 
 Cada hallazgo lleva el id de la regla. No es un defecto hasta que lo es: es un sitio donde hay

@@ -7,7 +7,7 @@ momentos: [escribir, revisar]
 resumen: >-
   Cero literales repetidos, y el camino de error antes que el feliz.
 aplica_si: >-
-  Escribes o tocas cualquier test.
+  Escribes o tocas cualquier test: unitario, de caso de uso, de integración.
 senal_de_incumplimiento: >-
   El mismo valor escrito en el given y en el assert; una clase de test sin ningún caso de fallo.
 comprobaciones:

@@ -77,6 +77,65 @@ def lineas_del_arbol(proyecto: pathlib.Path) -> dict[str, list[tuple[int, str]]]
     return salida
 
 
+def lineas_de_ficheros(proyecto: pathlib.Path, rutas: list[str]) -> dict[str, list[tuple[int, str]]]:
+    """Ficheros concretos (el que el agente acaba de editar), enteros."""
+    salida = {}
+    for r in rutas:
+        p = pathlib.Path(r)
+        if not p.is_absolute():
+            p = proyecto / p
+        if not p.is_file():
+            continue
+        try:
+            rel = str(p.resolve().relative_to(proyecto.resolve()))
+        except ValueError:
+            rel = str(p)
+        try:
+            salida[rel] = list(enumerate(p.read_text(encoding='utf-8').split('\n'), 1))
+        except (UnicodeDecodeError, OSError):
+            continue
+    return salida
+
+
+def lineas_de_cambios(proyecto: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
+    """Todo lo que aún no está en HEAD: líneas añadidas en el diff (preparado o no)
+    y los ficheros nuevos sin seguimiento. Es lo que el hook de parada revisa."""
+    salida: dict[str, list] = {}
+    r = subprocess.run(['git', '-C', str(proyecto), 'diff', 'HEAD', '-U0', '--no-color'], capture_output=True, text=True)
+    if r.returncode != 0:  # sin commits todavía, o sin git: el árbol entero
+        return lineas_del_arbol(proyecto)
+    ruta, n = None, 0
+    for l in r.stdout.split('\n'):
+        if l.startswith('+++ b/'):
+            ruta = l[6:]; salida.setdefault(ruta, [])
+        elif l.startswith('@@'):
+            m = re.search(r'\+(\d+)', l); n = int(m.group(1)) if m else 0
+        elif ruta and l.startswith('+') and not l.startswith('+++'):
+            salida[ruta].append((n, l[1:])); n += 1
+        elif ruta and not l.startswith('-'):
+            n += 1
+    r = subprocess.run(['git', '-C', str(proyecto), 'ls-files', '--others', '--exclude-standard'], capture_output=True, text=True)
+    nuevos = [x for x in r.stdout.split('\n') if x.strip()]
+    salida.update(lineas_de_ficheros(proyecto, nuevos))
+    return salida
+
+
+def busca_hallazgos(c: Cerebro, fuentes: dict[str, list[tuple[int, str]]]) -> list[dict]:
+    """Aplica las comprobaciones del cerebro a {ruta: [(línea, texto)]}.
+    Es lo que comparten la línea de comandos, el pre-commit y los hooks."""
+    compiladas = [(re.compile(x['patron']), x) for x in c.comprobaciones()]
+    hallazgos = []
+    for rel, lineas in fuentes.items():
+        for rx, x in compiladas:
+            if not casa_ficheros(rel, x['ficheros']):
+                continue
+            for n, texto in lineas:
+                if rx.search(texto):
+                    hallazgos.append(dict(regla=x['regla'], ruta=rel, linea=n, texto=texto.strip(),
+                                          mensaje=x['mensaje'], bloquea=x['bloquea'], fuente=x['ruta']))
+    return hallazgos
+
+
 def casa_ficheros(rel: str, patron: str) -> bool:
     """`src/**/*.kt` casa como espera la gente: `**` cruza directorios."""
     patrones = [x.strip() for x in patron.split(',') if x.strip()]
@@ -128,15 +187,8 @@ def main() -> int:
         print('%s%s%s\nSin git aquí: usa --todo para revisar el árbol entero.' % (ROJO, e, FIN))
         return 2
 
-    compiladas = [(re.compile(x['patron']), x) for x in comps]
-    hallazgos = []
-    for rel, lineas in fuentes.items():
-        for rx, x in compiladas:
-            if not casa_ficheros(rel, x['ficheros']):
-                continue
-            for n, texto in lineas:
-                if rx.search(texto):
-                    hallazgos.append((x, rel, n, texto.strip()))
+    hallazgos = [(dict(regla=h['regla'], bloquea=h['bloquea'], mensaje=h['mensaje'], ruta=h['fuente']),
+                  h['ruta'], h['linea'], h['texto']) for h in busca_hallazgos(c, fuentes)]
 
     print('\n%svigilar%s · %s · %s · %d comprobaciones\n' % (NEGRITA, FIN, c.cfg.nombre, origen, len(comps)))
     if not hallazgos:

@@ -7,7 +7,8 @@ momentos: [revisar, entregar]
 resumen: >-
   Cinco preguntas binarias sobre el diff propio. Se contestan antes de decir "hecho".
 aplica_si: >-
-  Siempre, antes de decir que un cambio está terminado.
+  Siempre, antes de decir que un cambio está terminado: al abrir la MR o pull request,
+  al revisar el diff propio, al entregar.
 senal_de_incumplimiento: >-
   Cualquiera de las preguntas contestada que sí sin justificación escrita.
 evidencia: acordado en la retro del 12/03

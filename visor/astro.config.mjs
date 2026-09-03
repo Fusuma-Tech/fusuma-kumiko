@@ -27,7 +27,7 @@ function interesa(fichero) {
   if (!fichero.startsWith(RAIZ + path.sep) && fichero !== RAIZ) return false;
   if (fichero.includes(`${path.sep}.git${path.sep}`) || fichero.includes(`${path.sep}node_modules${path.sep}`)) return false;
   if (generados().some((g) => fichero === g)) return false;
-  return fichero.endsWith('.md') || fichero.endsWith('kumiko.json')
+  return fichero.endsWith('.md') || fichero.endsWith('kumiko.json') || fichero.endsWith('.jsonl')
       || fichero.endsWith('decisiones.json') || fichero.endsWith('.kumiko-cerebro');
 }
 

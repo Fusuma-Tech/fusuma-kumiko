@@ -190,6 +190,18 @@ class Config:
         self.extra = r.get('extra', [])
         self.salida_indice = r.get('indice', '%s/INDICE.md' % self.dir_reglas)
         self.salida_datos = r.get('datos', '.kumiko/cerebro.json')
+        self.evaluaciones = r.get('evaluaciones', 'evaluaciones/consultas.jsonl')
+        self.telemetria = r.get('telemetria', '.kumiko/consultas.jsonl')
+        # El harness: lo que el plugin hace solo, sin que nadie se acuerde.
+        h = d.get('harness', {})
+        self.harness = dict(
+            inyectar_reglas=h.get('inyectar_reglas', True),      # UserPromptSubmit
+            vigilar_al_editar=h.get('vigilar_al_editar', True),  # PostToolUse Edit|Write
+            bloquear_commit=h.get('bloquear_commit', True),      # PreToolUse Bash(git commit)
+            revisar_al_parar=h.get('revisar_al_parar', True),    # Stop
+            minimo_palabras=int(h.get('minimo_palabras', 4)),
+            maximo_caracteres=int(h.get('maximo_caracteres', 1800)))
+        self.umbral_recall = float(d.get('evaluacion', {}).get('umbral_recall', 0.8))
         self.prefijo_nucleo = d.get('prefijo_nucleo', 'NUC')
         self.categorias = d['categorias']
         self.momentos = d['momentos']
@@ -407,8 +419,17 @@ class Cerebro:
         for total, pf, _, fid, tf, reglas in candidatos[:max_ficheros]:
             if total < corte:
                 continue
-            elegidas = ([(rid, tr) for _, rid, tr in reglas[:5]] if reglas
-                        else [(rid, []) for rid in self.por_fichero[fid][:6]])
+            # Las que casan por su texto van primero, con su explicación. Si además el
+            # `aplica_si` del fichero ha casado (el tema es este), el resto de sus reglas
+            # también aplica: se completa con ellas, en su orden, hasta cinco.
+            elegidas = [(rid, tr) for _, rid, tr in reglas[:5]]
+            if pf > 0 or not elegidas:
+                ya = {rid for rid, _ in elegidas}
+                for rid in self.por_fichero[fid]:
+                    if len(elegidas) >= 5:
+                        break
+                    if rid not in ya:
+                        elegidas.append((rid, []))
             salida.append((fid, tf, elegidas))
         return salida
 

@@ -13,7 +13,9 @@ Comprueba, en este orden:
   5. el servidor habla MCP de verdad por stdio: initialize, tools/list, tools/call
   6. el servidor arranca en una carpeta sin cerebro y dice cómo crearlo
   7. vigilar encuentra los incumplimientos que las comprobaciones declaran
-  8. el visor compila, si tiene las dependencias instaladas
+  8. el harness (los cinco hooks) enruta, vigila y para sobre una copia con un fallo plantado
+  9. el enrutado pasa su conjunto de evaluación
+ 10. el visor compila, si tiene las dependencias instaladas
 
 Sale con código 1 si algo falla. Vale para CI.
 """
@@ -101,6 +103,9 @@ def main() -> int:
              '%d comprobaciones · %d hallazgos%s' % (n_comps, hallazgos,
                                                      ' (los 3 plantados)' if es_ejemplo and ok else ''))
 
+    paso(*prueba_harness(cerebro))
+    paso(*prueba_evaluacion(cerebro))
+
     visor = KUMIKO / 'visor'
     if (visor / 'node_modules').is_dir():
         env = dict(os.environ, KUMIKO_CEREBRO=str(cerebro))
@@ -119,6 +124,82 @@ def main() -> int:
         return 1
     print('%slas %d comprobaciones pasan%s\n' % (VERDE, len(resultados), FIN))
     return 0
+
+
+def hook(orden: str, entrada: dict, cwd: str) -> dict:
+    """Llama a un hook como lo haría Claude Code: JSON por stdin, JSON por stdout."""
+    r = subprocess.run([sys.executable, str(MOTOR / 'harness.py'), orden], input=json.dumps(entrada),
+                       capture_output=True, text=True, cwd=cwd, timeout=60)
+    if r.returncode != 0:
+        raise RuntimeError('%s salió con %d: %s' % (orden, r.returncode, r.stderr.strip()[-160:]))
+    return json.loads(r.stdout) if r.stdout.strip() else {}
+
+
+def prueba_harness(cerebro: pathlib.Path) -> tuple[bool, str, str]:
+    """Los cinco hooks, sobre una copia del cerebro con git y un fichero plantado:
+    el prompt recibe reglas, el fichero editado da hallazgos, el commit se
+    deniega, la parada se bloquea, y con stop_hook_active no hay bucle."""
+    nombre = 'el harness enruta, vigila y para'
+    if not (cerebro / 'src').is_dir():
+        return True, nombre, 'sin src/ en este cerebro; solo se prueba el prompt'
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix='kumiko-harness-'))
+    try:
+        copia = tmp / 'proyecto'
+        shutil.copytree(cerebro, copia, ignore=shutil.ignore_patterns('.kumiko', 'node_modules', '.git'))
+        cwd = str(copia)
+        subprocess.run(['git', 'init', '-q'], cwd=cwd, check=True)
+        subprocess.run(['git', 'add', '-A'], cwd=cwd, check=True)
+        subprocess.run(['git', '-c', 'user.name=k', '-c', 'user.email=k@k', 'commit', '-q', '-m', 'base'], cwd=cwd, check=True)
+        # 1. sesión
+        s1 = hook('sesion', {'cwd': cwd}, cwd)
+        if 'reglas' not in s1.get('hookSpecificOutput', {}).get('additionalContext', ''):
+            return False, nombre, 'SessionStart no presenta el cerebro'
+        # 2. prompt → reglas
+        s2 = hook('prompt', {'cwd': cwd, 'prompt': consulta_que_casa(cerebro)}, cwd)
+        ctx = s2.get('hookSpecificOutput', {}).get('additionalContext', '')
+        if not re.search(r'`[A-Z]{2,3}(?:-[A-Z]{2,4})?-\d+`', ctx):
+            return False, nombre, 'UserPromptSubmit no inyecta ninguna regla'
+        if hook('prompt', {'cwd': cwd, 'prompt': 'sí'}, cwd):
+            return False, nombre, 'UserPromptSubmit responde a un prompt de una palabra'
+        # 3. un fichero nuevo con un incumplimiento que bloquea
+        malo = copia / 'src' / 'Plantado.kt'
+        malo.write_text('fun f() {\n  repo.buscarPor(x).onFailure { logger.error("x") }\n}\n', encoding='utf-8')
+        s3 = hook('tras-editar', {'cwd': cwd, 'tool_name': 'Write', 'tool_input': {'file_path': str(malo)}}, cwd)
+        if s3.get('decision') != 'block':
+            return False, nombre, 'PostToolUse no devuelve el hallazgo del fichero editado'
+        # 4. commit denegado
+        subprocess.run(['git', 'add', '-A'], cwd=cwd, check=True)
+        s4 = hook('antes-de-bash', {'cwd': cwd, 'tool_name': 'Bash', 'tool_input': {'command': 'git commit -m "x"'}}, cwd)
+        if s4.get('hookSpecificOutput', {}).get('permissionDecision') != 'deny':
+            return False, nombre, 'PreToolUse deja pasar un commit con hallazgos que bloquean'
+        if hook('antes-de-bash', {'cwd': cwd, 'tool_name': 'Bash', 'tool_input': {'command': 'ls -la'}}, cwd):
+            return False, nombre, 'PreToolUse se mete con un comando que no es commit'
+        # 5. parada bloqueada, y sin bucle
+        s5 = hook('al-parar', {'cwd': cwd, 'stop_hook_active': False}, cwd)
+        if s5.get('decision') != 'block':
+            return False, nombre, 'Stop deja terminar con hallazgos que bloquean'
+        if hook('al-parar', {'cwd': cwd, 'stop_hook_active': True}, cwd):
+            return False, nombre, 'Stop vuelve a bloquear con stop_hook_active: bucle'
+        tel = copia / '.kumiko' / 'consultas.jsonl'
+        n = len(tel.read_text(encoding='utf-8').strip().split('\n')) if tel.exists() else 0
+        return True, nombre, '5 hooks · prompt con reglas · edición, commit y parada bloqueados · %d eventos en telemetría' % n
+    except Exception as e:  # noqa: BLE001
+        return False, nombre, '%s: %s' % (type(e).__name__, e)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def prueba_evaluacion(cerebro: pathlib.Path) -> tuple[bool, str, str]:
+    nombre = 'el enrutado pasa su evaluación'
+    r = corre([str(MOTOR / 'evaluar.py'), '--json', str(cerebro)])
+    try:
+        d = json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return False, nombre, (r.stderr.strip() or r.stdout.strip())[-140:]
+    if not d['casos']:
+        return True, nombre, 'sin conjunto de evaluación (%s); salta' % d['fichero']
+    return bool(d['pasa']), nombre, 'recall %.0f%% · precisión %.0f%% · %d de %d consultas bien' % (
+        d['recall'] * 100, d['precision'] * 100, d['ok'], d['casos'])
 
 
 def consulta_que_casa(cerebro: pathlib.Path) -> str:

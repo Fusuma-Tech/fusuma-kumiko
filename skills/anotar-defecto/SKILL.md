@@ -22,6 +22,10 @@ y redacta tú el borrador.
    cubra: `python3 ${CLAUDE_PLUGIN_ROOT}/motor/servidor_mcp.py --probar "<el comentario>"`.
    - Si existe → esto es una **reincidencia**: la regla estaba escrita y no llegó. Dilo así,
      porque es el dato más importante del cerebro. El defecto se anota igual, citando la regla.
+     Y mira la telemetría (`.kumiko/consultas.jsonl`): si la regla NO se devolvió cuando se
+     trabajó en ese código, es un fallo de enrutado. Añade la frase de la tarea a
+     `evaluaciones/consultas.jsonl` con esa regla como esperada, y retoca el `aplica_si` hasta
+     que `motor/evaluar.py` la encuentre. Así ese fallo no se repite en silencio.
    - Si no existe → el defecto trae una regla nueva debajo del brazo (`/kumiko:anadir-regla`).
 3. Lee el código que el comentario señala. **Si la explicación del revisor y el código no
    coinciden, gana el código.**

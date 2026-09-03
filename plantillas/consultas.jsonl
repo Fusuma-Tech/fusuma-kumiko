@@ -1,0 +1,2 @@
+{"consulta": "una frase como la diría alguien del equipo antes de tocar código", "esperadas": ["ID-DE-LA-REGLA"]}
+{"consulta": "otra consulta que NO debe traer cierta regla", "esperadas": [], "no_esperadas": ["ID-QUE-NO-DEBE-SALIR"]}
